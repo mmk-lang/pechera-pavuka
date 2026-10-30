@@ -1,0 +1,78 @@
+/* Гра займає все вікно, без прокрутки */
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #0d0b0a;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: #eee4d8;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+}
+
+/* Полотно не повинно прокручувати сторінку чи збільшувати її на телефоні */
+#app canvas {
+  display: block;
+  touch-action: none;
+}
+
+/* Панель із підказками в лівому верхньому куті */
+.hud {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  max-width: calc(100% - 24px);
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(15, 12, 10, 0.72);
+  font-size: 14px;
+  line-height: 1.45;
+  pointer-events: none; /* кліки проходять крізь панель до гри */
+}
+
+.hud-title {
+  margin: 0 0 4px;
+  font-size: 20px;
+}
+
+.hud-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 6px 0;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.dot-start {
+  background: #5fd35f;
+}
+.dot-turret {
+  background: #4f7cff;
+}
+.dot-cell {
+  background: #3fa7a0;
+}
+
+.hud-controls {
+  opacity: 0.75;
+  font-size: 13px;
+}
+
+.hud-errors {
+  margin-top: 8px;
+  color: #ff7a6a;
+}
