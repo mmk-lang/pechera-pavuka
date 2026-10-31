@@ -3,7 +3,7 @@
   "cave": {
     "width": 40,
     "depth": 30,
-    "wallHeight": 4
+    "wallHeight": 1.5
   },
   "spider": {
     "x": 0,

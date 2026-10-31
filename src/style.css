@@ -39,32 +39,9 @@ body {
   font-size: 20px;
 }
 
-.hud-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  margin: 6px 0;
-}
-
-.legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-}
-.dot-start {
-  background: #5fd35f;
-}
-.dot-turret {
-  background: #4f7cff;
-}
-.dot-cell {
-  background: #3fa7a0;
+.hud-round {
+  font-weight: 600;
+  margin-bottom: 4px;
 }
 
 .hud-controls {
@@ -75,4 +52,121 @@ body {
 .hud-errors {
   margin-top: 8px;
   color: #ff7a6a;
+}
+
+/* Нижня панель: картки солдатів і кнопка «Кінець ходу» */
+.bottom-bar {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.soldier-card,
+.end-turn {
+  font: inherit;
+  color: inherit;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  background: rgba(15, 12, 10, 0.8);
+  padding: 8px 12px;
+  cursor: pointer;
+  touch-action: manipulation; /* без затримки подвійного тапу на телефоні */
+}
+
+.soldier-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  border-left: 6px solid var(--soldier-color);
+  min-width: 92px;
+}
+
+.soldier-card.selected {
+  border-color: #ffe14a;
+  border-left-color: var(--soldier-color);
+}
+
+.soldier-card:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.ap-dots {
+  display: flex;
+  gap: 5px;
+}
+
+.ap-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #7dff7a;
+}
+
+.ap-dot.spent {
+  background: #333;
+}
+
+.end-turn {
+  font-weight: 700;
+  background: #8a2b1f;
+  padding: 8px 18px;
+}
+
+/* Пульсує, коли всі очки дій витрачені */
+.end-turn.pulse {
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    background: #d8452f;
+    transform: scale(1.06);
+  }
+}
+
+/* Коротке повідомлення над нижньою панеллю */
+.toast {
+  position: absolute;
+  left: 50%;
+  bottom: 96px;
+  transform: translateX(-50%);
+  max-width: calc(100% - 32px);
+  padding: 8px 16px;
+  border-radius: 10px;
+  background: rgba(20, 16, 14, 0.92);
+  border: 1px solid #ffe14a;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+
+.toast.visible {
+  opacity: 1;
+}
+
+/* На вузькому екрані телефона — компактніше */
+@media (max-width: 600px) {
+  .hud {
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+  .hud-title {
+    font-size: 16px;
+  }
+  .soldier-card {
+    min-width: 0;
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+  .toast {
+    bottom: 130px;
+  }
 }

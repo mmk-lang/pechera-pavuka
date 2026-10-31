@@ -21,7 +21,7 @@
     "pitchDeg": 65,
     "startDistance": 34,
     "minDistance": 10,
-    "maxDistance": 60,
+    "maxDistance": 80,
     "panSpeed": 18,
     "rotateSpeedDeg": 90,
     "zoomStep": 1.12

@@ -1,13 +1,12 @@
-// Точка входу: завантажуємо рівень і баланс, будуємо сцену, запускаємо цикл кадрів.
+// Точка входу: завантажуємо рівень і баланс, створюємо гру, запускаємо цикл кадрів.
 
 import balanceJson from '../data/balance.json';
 import levelJson from '../data/level01.json';
 import type { Balance } from './core/balance';
 import { validateLevel } from './core/level';
+import { createInitialState } from './core/state';
 import type { LevelData } from './core/types';
-import { CameraInput } from './input/cameraInput';
-import { createGameScene } from './render/scene';
-import { createHud } from './ui/hud';
+import { Game } from './game';
 import './style.css';
 
 const level = levelJson as LevelData;
@@ -17,18 +16,14 @@ const balance = balanceJson as Balance;
 const problems = validateLevel(level);
 if (problems.length > 0) console.error('Помилки в рівні:', problems);
 
-const app = document.getElementById('app')!;
-const game = createGameScene(app, level, balance.camera);
-const input = new CameraInput(game.rig, game.renderer.domElement, balance.camera);
-createHud(app, level, problems);
+const game = new Game(document.getElementById('app')!, createInitialState(level, balance), problems);
 
-// Цикл кадрів: щокадру оновлюємо камеру з клавіатури й перемальовуємо сцену
+// Цикл кадрів: щокадру оновлюємо камеру й анімації та перемальовуємо сцену
 let lastTime = performance.now();
 function frame(now: number): void {
   const dt = Math.min((now - lastTime) / 1000, 0.1); // секунди; обмежуємо, якщо вкладка «спала»
   lastTime = now;
-  input.update(dt);
-  game.render();
+  game.frame(dt);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

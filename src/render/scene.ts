@@ -1,22 +1,26 @@
-// Збирає всю 3D-сцену: рендерер, світло, печеру, камені, клітинки й павука.
+// Збирає всю 3D-сцену: рендерер, світло, печеру, камені, клітинки, солдатів і павука.
 // Рендер лише читає дані рівня й малює — правил гри тут немає.
 
 import * as THREE from 'three';
-import type { CameraBalance } from '../core/balance';
-import type { LevelData } from '../core/types';
+import type { GameState } from '../core/state';
 import { CameraRig } from './camera';
 import { createCave } from './cave';
-import { createCells, createRocks } from './rocks';
+import { CellsView } from './cells';
+import { createRocks } from './rocks';
 import { createSpider } from './spider';
+import { UnitsView } from './units';
 
 export interface GameScene {
   renderer: THREE.WebGLRenderer;
   scene: THREE.Scene;
   rig: CameraRig;
-  render(): void;
+  cells: CellsView;
+  units: UnitsView;
+  render(dt: number): void;
 }
 
-export function createGameScene(container: HTMLElement, level: LevelData, cameraSettings: CameraBalance): GameScene {
+export function createGameScene(container: HTMLElement, state: GameState): GameScene {
+  const level = state.world.level;
   // Рендерер малює в <canvas>, який ми додаємо на сторінку
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // на телефонах не більше 2×, щоб не гальмувало
@@ -26,7 +30,6 @@ export function createGameScene(container: HTMLElement, level: LevelData, camera
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x0d0b0a);
-  scene.fog = new THREE.Fog(0x0d0b0a, 45, 90); // далеке темніє — відчуття печери
 
   // Світло: слабке розсіяне + «лампа» згори з тінями + червонувате сяйво з гнізда павука
   scene.add(new THREE.HemisphereLight(0x8a9bb0, 0x2a1d14, 0.9));
@@ -47,10 +50,12 @@ export function createGameScene(container: HTMLElement, level: LevelData, camera
   // Об'єкти рівня
   scene.add(createCave(level.cave));
   scene.add(createRocks(level));
-  scene.add(createCells(level));
+  const cells = new CellsView(state.world);
+  const units = new UnitsView(state);
+  scene.add(cells.group, units.group);
   scene.add(createSpider(level.spider.x, level.spider.z));
 
-  const rig = new CameraRig(cameraSettings, level.cave);
+  const rig = new CameraRig(state.balance.camera, level.cave);
 
   // Коли змінюється розмір вікна (або телефон повернули) — підлаштовуємось
   const resize = () => {
@@ -61,11 +66,17 @@ export function createGameScene(container: HTMLElement, level: LevelData, camera
   };
   window.addEventListener('resize', resize);
   resize();
+  rig.fitCave(); // на старті показуємо всю печеру
 
   return {
     renderer,
     scene,
     rig,
-    render: () => renderer.render(scene, rig.camera),
+    cells,
+    units,
+    render: (dt) => {
+      units.update(dt);
+      renderer.render(scene, rig.camera);
+    },
   };
 }

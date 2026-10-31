@@ -44,6 +44,32 @@ export class CameraRig {
     this.pan(-dxPixels * metersPerPixel, (dyPixels * metersPerPixel) / Math.sin(this.pitch));
   }
 
+  // Перевести камеру на точку підлоги (x, z)
+  lookAt(x: number, z: number): void {
+    this.target.set(x, z);
+    this.update();
+  }
+
+  // Віддалити камеру настільки, щоб уся печера вмістилась на екрані.
+  // Якщо екран вертикальний (телефон), повертаємо камеру на 90°, щоб довгий бік печери йшов уздовж екрана.
+  // Викликати після resize(), бо результат залежить від пропорцій екрана.
+  fitCave(): void {
+    const portrait = this.camera.aspect < 1;
+    this.yaw = portrait ? 90 * DEG : 0;
+    // Що видно по горизонталі екрана, а що — по вертикалі
+    const across = portrait ? this.cave.depth : this.cave.width;
+    const along = portrait ? this.cave.width : this.cave.depth;
+
+    const tanV = Math.tan((this.camera.fov * DEG) / 2); // половина вертикального кута огляду
+    const tanH = tanV * this.camera.aspect; // половина горизонтального кута огляду
+    const margin = 1.15; // трохи місця для панелей зверху й знизу
+    // Скільки треба відійти, щоб влізла ширина печери і (з урахуванням нахилу) її глибина
+    const forWidth = (across / 2 / tanH) * margin;
+    const forDepth = ((along / 2) * Math.sin(this.pitch) / tanV) * margin;
+    this.distance = Math.max(this.settings.startDistance, forWidth, forDepth);
+    this.update();
+  }
+
   // Масштаб: factor > 1 — віддалити, factor < 1 — наблизити
   zoom(factor: number): void {
     this.distance *= factor;

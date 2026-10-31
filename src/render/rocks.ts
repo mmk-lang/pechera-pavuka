@@ -1,4 +1,4 @@
-// Камені та клітинки біля них.
+// Камені печери.
 
 import * as THREE from 'three';
 import type { LevelData } from '../core/types';
@@ -29,27 +29,6 @@ export function createRocks(level: LevelData): THREE.Group {
     mesh.name = rock.id;
     group.add(mesh);
   });
-
-  return group;
-}
-
-export function createCells(level: LevelData): THREE.Group {
-  const group = new THREE.Group();
-  const geometry = new THREE.CircleGeometry(0.6, 24);
-
-  for (const cell of level.cells) {
-    // Звичайні клітинки — бірюзові; старт — зелений, турель — синя
-    let color = 0x3fa7a0;
-    if (cell.id === level.startCell) color = 0x5fd35f;
-    if (cell.id === level.turretCell) color = 0x4f7cff;
-
-    const material = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.55 });
-    const disc = new THREE.Mesh(geometry, material);
-    disc.rotation.x = -Math.PI / 2;
-    disc.position.set(cell.x, 0.02, cell.z); // трохи над підлогою, щоб не мерехтіло
-    disc.name = cell.id;
-    group.add(disc);
-  }
 
   return group;
 }

@@ -10,8 +10,8 @@ export interface Rock {
   height: number;
 }
 
-// Клітинка — місце біля каменя, де можуть стояти солдати, павучата й предмети.
-// Сусідів (neighbors) і видимість (exposedTo) додамо на етапах 2 і 4.
+// Клітинка так, як вона записана в JSON рівня: місце біля каменя,
+// де можуть стояти солдати, павучата й предмети.
 export interface LevelCell {
   id: string;
   x: number;
@@ -55,3 +55,28 @@ export interface LevelData {
   rocks: Rock[];
   cells: LevelCell[];
 }
+
+// Клітинка в грі: те саме, що в JSON, плюс сусіди — куди з неї можна піти за один крок.
+// Сусідів рахує graph.ts. Видимість (exposedTo) додамо на етапі 4.
+export interface Cell extends LevelCell {
+  neighbors: string[];
+}
+
+// Що солдат тримає в руках (знадобиться на етапі 3)
+export type Held = { kind: 'item' | 'soldier' | 'cocoon'; id: string };
+
+export type SoldierStatus = 'free' | 'cocooned' | 'dead';
+
+export interface Soldier {
+  id: string;
+  cellId: string; // де стоїть
+  ap: number; // скільки очок дій лишилось у цьому ході
+  status: SoldierStatus;
+  held: Held | null; // що тримає
+  carriedBy: string | null; // id солдата, який його несе
+}
+
+// Дії гравця. Інші дії (підняти, кинути, розмотати, вогонь) додамо на наступних етапах.
+export type Action =
+  | { type: 'move'; soldierId: string; toCell: string }
+  | { type: 'endTurn' };
