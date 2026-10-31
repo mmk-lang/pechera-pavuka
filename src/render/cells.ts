@@ -1,5 +1,6 @@
 // Клітинки на підлозі й лінії між сусідніми клітинками.
 // Клітинки, куди вибраний солдат може піти, підсвічуються.
+// Червоне кільце — клітинку бачить павук зараз; пунктирне помаранчеве — побачить наприкінці раунду.
 
 import * as THREE from 'three';
 import type { World } from '../core/state';
@@ -9,11 +10,14 @@ const COLOR_START = 0x5fd35f; // старт — зелений
 const COLOR_TURRET = 0x4f7cff; // турель — синя
 const COLOR_REACHABLE = 0xffd24a; // сюди можна піти — жовта
 const COLOR_THROW = 0xff7a2a; // сюди можна кинути — помаранчева
+const COLOR_DANGER_NOW = 0xff2a1a; // павук бачить зараз
+const COLOR_DANGER_NEXT = 0xff9a2a; // павук побачить наприкінці раунду
 
 export class CellsView {
   readonly group = new THREE.Group();
   private discs = new Map<string, THREE.Mesh<THREE.CircleGeometry, THREE.MeshBasicMaterial>>();
   private baseColors = new Map<string, number>();
+  private dangerRings = new Map<string, THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>>();
 
   constructor(world: World) {
     const geometry = new THREE.CircleGeometry(0.7, 28);
@@ -31,6 +35,17 @@ export class CellsView {
       disc.userData.cellId = cell.id; // за цим id клік знає, по якій клітинці влучили
       this.discs.set(cell.id, disc);
       this.group.add(disc);
+
+      // Кільце небезпеки навколо клітинки (спершу сховане)
+      const ring = new THREE.Mesh(
+        new THREE.RingGeometry(0.72, 0.9, 28),
+        new THREE.MeshBasicMaterial({ color: COLOR_DANGER_NOW, transparent: true, depthWrite: false }),
+      );
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.set(cell.x, 0.04, cell.z);
+      ring.visible = false;
+      this.dangerRings.set(cell.id, ring);
+      this.group.add(ring);
     }
 
     this.group.add(createLinks(world));
@@ -50,6 +65,15 @@ export class CellsView {
       const on = highlighted.has(id);
       disc.material.color.setHex(on ? color : this.baseColors.get(id)!);
       disc.material.opacity = on ? 0.85 : 0.5;
+    }
+  }
+
+  // Позначити небезпечні клітинки: now — бачить павук зараз, next — побачить наприкінці раунду
+  setDanger(now: Set<string>, next: Set<string>): void {
+    for (const [id, ring] of this.dangerRings) {
+      ring.visible = now.has(id) || next.has(id);
+      ring.material.color.setHex(now.has(id) ? COLOR_DANGER_NOW : COLOR_DANGER_NEXT);
+      ring.material.opacity = now.has(id) ? 0.95 : 0.6;
     }
   }
 }

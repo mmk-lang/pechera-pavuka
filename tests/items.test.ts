@@ -12,7 +12,7 @@ const TURRET = level.turretCell;
 
 // Допоміжне: солдати в заданих клітинках, предмети — у заданих клітинках (або як у рівні)
 function setup(soldierCells: string[], itemCells: Record<string, string> = {}): GameState {
-  const state = createInitialState(level, balance);
+  const state = createInitialState(level, balance, 42);
   return {
     ...state,
     soldiers: state.soldiers.map((s, i) => ({ ...s, cellId: soldierCells[i] ?? s.cellId })),
@@ -27,11 +27,11 @@ function run(state: GameState, ...actions: Action[]): GameState {
 }
 
 const A = 'cell_01';
-const near = (cellId: string) => createInitialState(level, balance).world.cells[cellId].neighbors;
+const near = (cellId: string) => createInitialState(level, balance, 42).world.cells[cellId].neighbors;
 
 describe('підняти й кинути предмет', () => {
   it('солдат піднімає предмет у своїй клітинці (1 AP) і кидає на сусідню', () => {
-    let state = setup([A, 'cell_10', 'cell_10', 'cell_13'], { part_1: A });
+    let state = setup([A, 'cell_20', 'cell_20', 'cell_13'], { part_1: A });
     state = run(state, { type: 'pickup', soldierId: 'soldier_1', target: { kind: 'item', id: 'part_1' } });
     expect(getSoldier(state, 'soldier_1')!.held).toEqual({ kind: 'item', id: 'part_1' });
     expect(getItem(state, 'part_1')).toMatchObject({ cellId: null, carriedBy: 'soldier_1' });
@@ -45,7 +45,7 @@ describe('підняти й кинути предмет', () => {
   });
 
   it('предмет в іншій клітинці підняти не можна', () => {
-    const state = setup([A, 'cell_10', 'cell_10', 'cell_13'], { part_1: 'cell_05' });
+    const state = setup([A, 'cell_20', 'cell_20', 'cell_13'], { part_1: 'cell_05' });
     expect(validate(state, { type: 'pickup', soldierId: 'soldier_1', target: { kind: 'item', id: 'part_1' } })).toEqual({
       ok: false,
       reason: 'targetNotHere',
@@ -53,7 +53,7 @@ describe('підняти й кинути предмет', () => {
   });
 
   it('з повними руками піднімати не можна', () => {
-    let state = setup([A, 'cell_10', 'cell_10', 'cell_13'], { part_1: A, part_2: A });
+    let state = setup([A, 'cell_20', 'cell_20', 'cell_13'], { part_1: A, part_2: A });
     state = run(state, { type: 'pickup', soldierId: 'soldier_1', target: { kind: 'item', id: 'part_1' } });
     expect(validate(state, { type: 'pickup', soldierId: 'soldier_1', target: { kind: 'item', id: 'part_2' } })).toEqual({
       ok: false,
@@ -62,7 +62,7 @@ describe('підняти й кинути предмет', () => {
   });
 
   it('кидати нічого — відмова; далі сусідньої клітинки — відмова', () => {
-    let state = setup([A, 'cell_10', 'cell_10', 'cell_13'], { part_1: A });
+    let state = setup([A, 'cell_20', 'cell_20', 'cell_13'], { part_1: A });
     expect(validate(state, { type: 'throw', soldierId: 'soldier_1', toCell: A })).toEqual({ ok: false, reason: 'handsEmpty' });
     state = run(state, { type: 'pickup', soldierId: 'soldier_1', target: { kind: 'item', id: 'part_1' } });
     const far = level.cells.find((c) => c.id !== A && !near(A).includes(c.id))!.id;
@@ -72,7 +72,7 @@ describe('підняти й кинути предмет', () => {
   });
 
   it('предмет їде разом із солдатом, який його несе', () => {
-    let state = setup([A, 'cell_10', 'cell_10', 'cell_13'], { part_1: A });
+    let state = setup([A, 'cell_20', 'cell_20', 'cell_13'], { part_1: A });
     const to = near(A)[0];
     state = run(
       state,
@@ -86,7 +86,7 @@ describe('підняти й кинути предмет', () => {
 
 describe('підняти й кинути солдата', () => {
   it('солдата можна підняти разом із його предметом, він переміщується з носієм', () => {
-    let state = setup([A, A, 'cell_10', 'cell_13'], { part_1: A });
+    let state = setup([A, A, 'cell_20', 'cell_13'], { part_1: A });
     const to = near(A)[0];
     state = run(
       state,
@@ -99,7 +99,7 @@ describe('підняти й кинути солдата', () => {
   });
 
   it('солдат, якого несуть, не діє', () => {
-    let state = setup([A, A, 'cell_10', 'cell_13']);
+    let state = setup([A, A, 'cell_20', 'cell_13']);
     state = run(state, { type: 'pickup', soldierId: 'soldier_1', target: { kind: 'soldier', id: 'soldier_2' } });
     expect(validate(state, { type: 'move', soldierId: 'soldier_2', toCell: near(A)[0] })).toEqual({
       ok: false,
@@ -125,7 +125,7 @@ describe('підняти й кинути солдата', () => {
 
   it('кинутий солдат приземляється живим, з тими самими AP і з місцем у клітинці', () => {
     const to = near(A)[0];
-    let state = setup([A, A, 'cell_10', 'cell_13']);
+    let state = setup([A, A, 'cell_20', 'cell_13']);
     state = run(
       state,
       { type: 'pickup', soldierId: 'soldier_1', target: { kind: 'soldier', id: 'soldier_2' } },
@@ -146,7 +146,7 @@ describe('турель і вогонь', () => {
   const turretNeighbor = near(TURRET)[0];
 
   it('предмет, принесений у клітинку турелі, встановлюється сам і звільняє руки', () => {
-    let state = setup([turretNeighbor, 'cell_10', 'cell_10', 'cell_13'], { part_1: turretNeighbor });
+    let state = setup([turretNeighbor, 'cell_20', 'cell_20', 'cell_13'], { part_1: turretNeighbor });
     state = run(
       state,
       { type: 'pickup', soldierId: 'soldier_1', target: { kind: 'item', id: 'part_1' } },
@@ -158,7 +158,7 @@ describe('турель і вогонь', () => {
   });
 
   it('предмет, кинутий у клітинку турелі, теж встановлюється; встановлений підняти не можна', () => {
-    let state = setup([turretNeighbor, 'cell_10', 'cell_10', 'cell_13'], { cartridge: turretNeighbor });
+    let state = setup([turretNeighbor, 'cell_20', 'cell_20', 'cell_13'], { cartridge: turretNeighbor });
     state = run(
       state,
       { type: 'pickup', soldierId: 'soldier_1', target: { kind: 'item', id: 'cartridge' } },
@@ -170,7 +170,7 @@ describe('турель і вогонь', () => {
 
   // Стан, де встановлено задані предмети, а солдат 1 стоїть у турелі
   function turretWith(installed: string[], operatorCell = TURRET): GameState {
-    const state = setup([operatorCell, 'cell_10', 'cell_10', 'cell_13']);
+    const state = setup([operatorCell, 'cell_20', 'cell_20', 'cell_13']);
     return {
       ...state,
       items: state.items.map((it) => (installed.includes(it.id) ? { ...it, installed: true, cellId: TURRET } : it)),

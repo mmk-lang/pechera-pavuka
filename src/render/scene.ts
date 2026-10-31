@@ -6,8 +6,10 @@ import type { GameState } from '../core/state';
 import { CameraRig } from './camera';
 import { createCave } from './cave';
 import { CellsView } from './cells';
+import { CocoonsView } from './cocoons';
 import { createRocks } from './rocks';
 import { ItemsView } from './items';
+import { LanesView } from './lanes';
 import { SpiderView } from './spider';
 import { TurretView } from './turret';
 import { UnitsView } from './units';
@@ -21,6 +23,8 @@ export interface GameScene {
   items: ItemsView;
   turret: TurretView;
   spider: SpiderView;
+  lanes: LanesView;
+  cocoons: CocoonsView;
   render(dt: number): void;
 }
 
@@ -60,7 +64,9 @@ export function createGameScene(container: HTMLElement, state: GameState): GameS
   const items = new ItemsView(state);
   const turret = new TurretView(state.world);
   const spider = new SpiderView(level.spider.x, level.spider.z);
-  scene.add(cells.group, units.group, items.group, turret.group, spider.group);
+  const lanes = new LanesView(level);
+  const cocoons = new CocoonsView();
+  scene.add(lanes.group, cells.group, units.group, items.group, cocoons.group, turret.group, spider.group);
 
   const rig = new CameraRig(state.balance.camera, level.cave);
 
@@ -84,9 +90,12 @@ export function createGameScene(container: HTMLElement, state: GameState): GameS
     items,
     turret,
     spider,
+    lanes,
+    cocoons,
     render: (dt) => {
       units.update(dt);
       items.update(dt, units);
+      cocoons.update(dt, units);
       turret.update(dt);
       spider.update(dt);
       renderer.render(scene, rig.camera);

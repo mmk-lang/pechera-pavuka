@@ -37,12 +37,23 @@ export function createHud(root: HTMLElement, state: GameState, problems: LevelPr
   info.append(el('h1', 'hud-title', t('title')));
   const roundLine = el('div', 'hud-round');
   info.append(roundLine);
+  // Легенда небезпеки: як позначені клітинки, які бачить павук
+  const legend = el('div', 'hud-legend');
+  for (const [cls, key] of [
+    ['danger-now', 'legend.now'],
+    ['danger-next', 'legend.next'],
+  ]) {
+    const item = el('span', 'legend-item');
+    item.append(el('span', `ring ${cls}`), document.createTextNode(t(key)));
+    legend.append(item);
+  }
+  info.append(legend);
   const isTouch = window.matchMedia('(pointer: coarse)').matches;
   info.append(el('div', 'hud-controls', t(isTouch ? 'controlsTouch' : 'controlsDesktop')));
 
   if (problems.length > 0) {
     const box = el('div', 'hud-errors', t('levelErrors'));
-    for (const p of problems) box.append(el('div', '', t(`problem.${p.code}`, { id: p.id })));
+    for (const p of problems) box.append(el('div', '', t(`problem.${p.code}`, { id: p.id, expected: p.expected ?? '' })));
     info.append(box);
   }
 
@@ -84,6 +95,10 @@ export function createHud(root: HTMLElement, state: GameState, problems: LevelPr
   const toast = el('div', 'toast');
   let toastTimer = 0;
 
+  // Seed партії дрібно внизу панелі — щоб можна було повторити ту саму гру
+  const seedLine = el('div', 'hud-seed', t('seed', { seed: state.seed }));
+  info.append(seedLine);
+
   root.append(info, goal, bar, toast);
 
   return {
@@ -104,19 +119,29 @@ export function createHud(root: HTMLElement, state: GameState, problems: LevelPr
         const { card, dots, status } = cards.get(soldier.id)!;
         card.classList.toggle('selected', soldier.id === selectedId);
         card.disabled = soldier.status !== 'free' || soldier.carriedBy !== null;
+        card.classList.toggle('cocooned', soldier.status === 'cocooned');
+        card.classList.toggle('dead', soldier.status === 'dead');
         dots.forEach((dot, i) => dot.classList.toggle('spent', i >= soldier.ap));
-        // Під очками дій — що солдат несе, або що несуть його самого
-        status.textContent = soldier.carriedBy
-          ? t('card.carried')
-          : soldier.held
-            ? t('card.holding', { name: nameOf(soldier.held) })
-            : '';
+        // Під очками дій — що з солдатом: у коконі, загинув, його несуть або що він несе
+        const cocoon = state.cocoons.find((c) => c.soldierId === soldier.id);
+        status.textContent =
+          soldier.status === 'dead'
+            ? t('card.dead')
+            : cocoon
+              ? t('card.cocooned', { n: cocoon.turnsLeft })
+              : soldier.carriedBy
+                ? t('card.carried')
+                : soldier.held
+                  ? t('card.holding', { name: nameOf(soldier.held) })
+                  : '';
       }
       // Коли всі AP витрачені, кнопка «Кінець ходу» пульсує
       endTurn.classList.toggle('pulse', allApSpent);
     },
     message(text) {
-      toast.textContent = text;
+      // Якщо попереднє повідомлення ще видно — додаємо новий рядок (останні три)
+      const lines = toast.classList.contains('visible') ? [...toast.children].map((c) => c.textContent ?? '') : [];
+      toast.replaceChildren(...[...lines, text].slice(-3).map((line) => el('div', '', line)));
       toast.classList.add('visible');
       window.clearTimeout(toastTimer);
       toastTimer = window.setTimeout(() => toast.classList.remove('visible'), 2200);

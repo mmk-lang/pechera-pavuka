@@ -2,6 +2,7 @@
 // Повертаємо не текст, а коди помилок — текст українською лежить у i18n/uk.json.
 
 import type { LevelData } from './types';
+import { computeExposure } from './visibility';
 
 export type LevelProblemCode =
   | 'duplicateId' // два об'єкти з однаковим id
@@ -9,11 +10,13 @@ export type LevelProblemCode =
   | 'unknownCell' // старт, турель чи предмет посилається на клітинку, якої немає
   | 'rocksOverlap' // камені налазять один на одного
   | 'cellInsideRock' // клітинка стоїть усередині каменя
-  | 'outsideCave'; // камінь, клітинка чи павук поза стінами печери
+  | 'outsideCave' // камінь, клітинка чи павук поза стінами печери
+  | 'exposedMismatch'; // exposedTo клітинки не збігається з тим, що насправді бачить павук
 
 export interface LevelProblem {
   code: LevelProblemCode;
   id: string; // id об'єкта, з яким проблема
+  expected?: string; // для exposedMismatch — яким має бути exposedTo
 }
 
 // Відстань між двома точками на підлозі
@@ -73,6 +76,15 @@ export function validateLevel(level: LevelData): LevelProblem[] {
 
   // 5. Павук теж має бути в печері
   if (!insideCave(level, level.spider, 0)) problems.push({ code: 'outsideCave', id: 'spider' });
+
+  // 6. exposedTo кожної клітинки має збігатися з геометрією (лінії, камені).
+  //    Якщо пересунули камінь чи клітинку — гра підкаже, яке значення записати.
+  const exposure = computeExposure(level);
+  for (const cell of level.cells) {
+    const actual = [...(cell.exposedTo ?? [])].sort().join(',');
+    const expected = exposure[cell.id].join(',');
+    if (actual !== expected) problems.push({ code: 'exposedMismatch', id: cell.id, expected: `[${exposure[cell.id].join(', ')}]` });
+  }
 
   return problems;
 }

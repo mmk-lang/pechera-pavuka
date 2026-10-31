@@ -9,10 +9,11 @@ import {
   pickupOptions,
   reachableCells,
   throwTargets,
+  unwrapOptions,
   validate,
   type GameEvent,
 } from './core/rules';
-import { getSoldier, turretStatus, type GameState } from './core/state';
+import { cellsUnderLane, getCocoon, getSoldier, seenCells, turretStatus, type GameState } from './core/state';
 import type { Action, Held } from './core/types';
 import { t } from './i18n';
 import { CameraInput } from './input/cameraInput';
@@ -20,17 +21,19 @@ import { Picker } from './input/picking';
 import { createGameScene, type GameScene } from './render/scene';
 import { ActionPanel, type PanelButton } from './ui/actionPanel';
 import { createHud, type Hud } from './ui/hud';
-import { showVictory } from './ui/screens';
+import { showDefeat, showVictory } from './ui/screens';
 
 // Режим кліку по клітинці: звичайний (піти) або вибір, куди кинути
 type Mode = 'move' | 'throw';
 
-const VICTORY_DELAY = 1200; // мс: спершу показуємо постріл і загибель павука, потім екран перемоги
+const END_SCREEN_DELAY = 1200; // мс: спершу показуємо постріл (або останній кокон), потім екран кінця гри
 
 export class Game {
   private state: GameState;
   private selectedId: string | null = null;
   private mode: Mode = 'move';
+  // Клітинка під поглядом павука, куди гравець клікнув один раз: другий клік — підтвердження
+  private dangerConfirm: string | null = null;
   private scene: GameScene;
   private hud: Hud;
   private panel: ActionPanel;
@@ -57,6 +60,7 @@ export class Game {
       onEndTurn: () => this.dispatch({ type: 'endTurn' }),
     });
     this.panel = new ActionPanel(root);
+    this.scene.spider.lookAtLane(this.laneAngle(initialState.spider.activeLane), true);
 
     // Клавіші: 1–4 — вибрати солдата, Enter — кінець ходу, Esc — скасувати кидок
     window.addEventListener('keydown', (e) => {
@@ -81,7 +85,11 @@ export class Game {
 
   private select(soldierId: string): void {
     const soldier = getSoldier(this.state, soldierId);
-    if (!soldier || soldier.status !== 'free' || this.state.outcome !== 'playing') return;
+    if (!soldier || this.state.outcome !== 'playing') return;
+    if (soldier.status !== 'free') {
+      this.hud.message(t('reason.soldierNotFree'));
+      return;
+    }
     if (soldier.carriedBy) {
       this.hud.message(t('reason.soldierCarried'));
       return;
@@ -109,7 +117,15 @@ export class Game {
     }
     const soldier = getSoldier(this.state, this.selectedId)!;
     if (soldier.cellId === cellId) return; // клік по своїй клітинці — нічого не робимо
-    this.dispatch({ type: 'move', soldierId: this.selectedId, toCell: cellId });
+    const move: Action = { type: 'move', soldierId: this.selectedId, toCell: cellId };
+    // Крок під погляд павука = миттєвий кокон. Щоб не зробити це випадково, просимо клікнути ще раз.
+    if (seenCells(this.state).has(cellId) && validate(this.state, move).ok && this.dangerConfirm !== cellId) {
+      this.dangerConfirm = cellId;
+      this.hud.message(t('dangerConfirm'));
+      return;
+    }
+    this.dangerConfirm = null;
+    this.dispatch(move);
   }
 
   // Єдиний вхід для всіх дій гравця
@@ -123,7 +139,13 @@ export class Game {
     const result = apply(this.state, action);
     this.state = result.state;
     this.mode = 'move'; // після будь-якої дії повертаємось у звичайний режим
+    this.dangerConfirm = null;
     this.showEvents(result.events);
+    // Якщо вибраного солдата замотали — вибираємо іншого вільного
+    const selected = this.selectedId ? getSoldier(this.state, this.selectedId) : undefined;
+    if (selected && selected.status !== 'free' && this.state.outcome === 'playing') {
+      this.selectedId = this.state.soldiers.find((s) => s.status === 'free' && !s.carriedBy)?.id ?? null;
+    }
     // Щойно витратили останнє очко дії — підказуємо натиснути «Кінець ходу»
     if (hadAp && !anyApLeft(this.state) && this.state.outcome === 'playing') this.hud.message(t('allApSpent'));
     this.refresh();
@@ -142,19 +164,43 @@ export class Game {
           this.scene.turret.fire();
           this.scene.spider.die();
           break;
+        case 'unwrapped':
+          this.hud.message(t('event.unwrapped', { name: this.soldierName(event.soldierId) }));
+          break;
+        case 'captured':
+          this.hud.message(t('event.captured', { name: this.soldierName(event.soldierId) }));
+          break;
+        case 'died':
+          this.hud.message(t('event.died', { name: this.soldierName(event.soldierId) }));
+          break;
+        case 'spiderTurned':
+          this.scene.spider.lookAtLane(this.laneAngle(event.activeLane));
+          break;
         case 'won':
           this.selectedId = null;
-          window.setTimeout(() => showVictory(this.root, this.state.round), VICTORY_DELAY);
+          window.setTimeout(() => showVictory(this.root, this.state.round), END_SCREEN_DELAY);
+          break;
+        case 'lost':
+          this.selectedId = null;
+          window.setTimeout(() => showDefeat(this.root, this.state.round), END_SCREEN_DELAY);
           break;
       }
     }
   }
 
+  private laneAngle(laneId: number): number {
+    return this.state.world.level.lanes.find((l) => l.id === laneId)!.angleDeg;
+  }
+
+  private soldierName(soldierId: string): string {
+    return t('soldierName', { n: this.state.soldiers.findIndex((s) => s.id === soldierId) + 1 });
+  }
+
   // Назва того, що солдат тримає або може підняти: «Деталь 2», «Солдат 3»…
   private nameOf(target: Held): string {
     if (target.kind === 'item') return t(`item.${target.id}`);
-    const index = this.state.soldiers.findIndex((s) => s.id === target.id);
-    return t('soldierName', { n: index + 1 });
+    if (target.kind === 'cocoon') return t('cocoonOf', { name: this.soldierName(getCocoon(this.state, target.id)!.soldierId) });
+    return this.soldierName(target.id);
   }
 
   // Кнопки контекстної панелі для вибраного солдата
@@ -168,6 +214,14 @@ export class Game {
       buttons.push({
         label: t('action.pickup', { name: this.nameOf(target) }),
         onClick: () => this.dispatch({ type: 'pickup', soldierId: id, target }),
+      });
+    }
+    for (const cocoonId of unwrapOptions(this.state, id)) {
+      const name = this.soldierName(getCocoon(this.state, cocoonId)!.soldierId);
+      buttons.push({
+        label: t('action.unwrap', { name }),
+        style: 'rescue',
+        onClick: () => this.dispatch({ type: 'unwrap', soldierId: id, cocoonId }),
       });
     }
     const soldier = getSoldier(this.state, id)!;
@@ -196,6 +250,12 @@ export class Game {
     this.scene.units.sync(this.state, id);
     this.scene.items.sync(this.state);
     this.scene.turret.sync(turretStatus(this.state));
+    this.scene.cocoons.sync(this.state);
+    // Павук: активна лінія завжди видно; наступну — якщо telegraphNextLane = true (рішення Колі)
+    const { activeLane, nextLane } = this.state.spider;
+    const telegraph = this.state.balance.telegraphNextLane;
+    this.scene.lanes.sync(activeLane, nextLane, telegraph);
+    this.scene.cells.setDanger(seenCells(this.state), telegraph ? cellsUnderLane(this.state, nextLane) : new Set());
     const cells = !id ? [] : this.mode === 'throw' ? throwTargets(this.state, id) : reachableCells(this.state, id);
     this.scene.cells.setHighlight(cells, this.mode);
     this.hud.update(this.state, id, !anyApLeft(this.state), (target) => this.nameOf(target));

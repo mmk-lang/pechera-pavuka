@@ -17,13 +17,13 @@
     { "id": 4, "angleDeg": 52, "halfWidthDeg": 7 }
   ],
   "startCell": "cell_09",
-  "turretCell": "cell_19",
+  "turretCell": "cell_04",
   "items": [
     { "id": "part_1", "kind": "part", "cellId": "cell_07" },
     { "id": "part_2", "kind": "part", "cellId": "cell_12" },
-    { "id": "part_3", "kind": "part", "cellId": "cell_13" },
-    { "id": "part_4", "kind": "part", "cellId": "cell_02" },
-    { "id": "cartridge", "kind": "cartridge", "cellId": "cell_06" }
+    { "id": "part_3", "kind": "part", "cellId": "cell_10" },
+    { "id": "part_4", "kind": "part", "cellId": "cell_05" },
+    { "id": "cartridge", "kind": "cartridge", "cellId": "cell_02" }
   ],
   "rocks": [
     { "id": "rock_01", "x": 5.8, "z": 9.8, "radius": 1.49, "height": 2.21 },
@@ -48,25 +48,25 @@
     { "id": "rock_20", "x": -3.9, "z": 11.8, "radius": 1.0, "height": 1.56 }
   ],
   "cells": [
-    { "id": "cell_01", "x": 6.4, "z": 12.11, "rockId": "rock_01" },
-    { "id": "cell_02", "x": 7.91, "z": -9.6, "rockId": "rock_02" },
-    { "id": "cell_03", "x": 0.0, "z": 9.32, "rockId": "rock_03" },
-    { "id": "cell_04", "x": -4.58, "z": 1.46, "rockId": "rock_04" },
-    { "id": "cell_05", "x": 11.95, "z": 4.48, "rockId": "rock_05" },
-    { "id": "cell_06", "x": -10.45, "z": -5.3, "rockId": "rock_06" },
-    { "id": "cell_07", "x": -14.67, "z": -9.68, "rockId": "rock_07" },
-    { "id": "cell_08", "x": -16.63, "z": -1.68, "rockId": "rock_08" },
-    { "id": "cell_09", "x": 16.8, "z": 13.29, "rockId": "rock_09" },
-    { "id": "cell_10", "x": -9.54, "z": 11.13, "rockId": "rock_10" },
-    { "id": "cell_11", "x": 15.39, "z": -2.16, "rockId": "rock_11" },
-    { "id": "cell_12", "x": 18.98, "z": -5.81, "rockId": "rock_12" },
-    { "id": "cell_13", "x": -15.85, "z": 9.07, "rockId": "rock_13" },
-    { "id": "cell_14", "x": 18.16, "z": 8.33, "rockId": "rock_14" },
-    { "id": "cell_15", "x": -10.93, "z": 4.16, "rockId": "rock_15" },
-    { "id": "cell_16", "x": 9.56, "z": -2.45, "rockId": "rock_16" },
-    { "id": "cell_17", "x": -1.58, "z": -2.92, "rockId": "rock_17" },
-    { "id": "cell_18", "x": 13.53, "z": -7.76, "rockId": "rock_18" },
-    { "id": "cell_19", "x": 0.79, "z": 2.24, "rockId": "rock_19" },
-    { "id": "cell_20", "x": -4.2, "z": 13.68, "rockId": "rock_20" }
+    { "id": "cell_01", "x": 3.42, "z": 9.57, "rockId": "rock_01", "exposedTo": [] },
+    { "id": "cell_02", "x": 4.69, "z": -8.75, "rockId": "rock_02", "exposedTo": [4] },
+    { "id": "cell_03", "x": 0.0, "z": 9.32, "rockId": "rock_03", "exposedTo": [] },
+    { "id": "cell_04", "x": -4.58, "z": 1.46, "rockId": "rock_04", "exposedTo": [] },
+    { "id": "cell_05", "x": 8.6, "z": 3.27, "rockId": "rock_05", "exposedTo": [3] },
+    { "id": "cell_06", "x": -8.17, "z": -4.45, "rockId": "rock_06", "exposedTo": [0] },
+    { "id": "cell_07", "x": -14.04, "z": -8.51, "rockId": "rock_07", "exposedTo": [] },
+    { "id": "cell_08", "x": -13.5, "z": -5.16, "rockId": "rock_08", "exposedTo": [] },
+    { "id": "cell_09", "x": 15.59, "z": 9.58, "rockId": "rock_09", "exposedTo": [] },
+    { "id": "cell_10", "x": -9.07, "z": 7.35, "rockId": "rock_10", "exposedTo": [1] },
+    { "id": "cell_11", "x": 11.66, "z": -3.44, "rockId": "rock_11", "exposedTo": [4] },
+    { "id": "cell_12", "x": 17.32, "z": -4.62, "rockId": "rock_12", "exposedTo": [] },
+    { "id": "cell_13", "x": -12.83, "z": 8.05, "rockId": "rock_13", "exposedTo": [] },
+    { "id": "cell_14", "x": 17.85, "z": 5.46, "rockId": "rock_14", "exposedTo": [] },
+    { "id": "cell_15", "x": -10.93, "z": 4.16, "rockId": "rock_15", "exposedTo": [] },
+    { "id": "cell_16", "x": 6.83, "z": -2.04, "rockId": "rock_16", "exposedTo": [] },
+    { "id": "cell_17", "x": -0.22, "z": -5.91, "rockId": "rock_17", "exposedTo": [2] },
+    { "id": "cell_18", "x": 10.44, "z": -9.87, "rockId": "rock_18", "exposedTo": [] },
+    { "id": "cell_19", "x": -0.25, "z": -0.96, "rockId": "rock_19", "exposedTo": [2] },
+    { "id": "cell_20", "x": -2.24, "z": 12.72, "rockId": "rock_20", "exposedTo": [] }
   ]
 }

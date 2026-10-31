@@ -58,7 +58,7 @@ export class UnitsView {
       view.apDots.forEach((dot, i) => dot.material.color.setHex(i < soldier.ap ? AP_ON : AP_OFF));
       view.apDots.forEach((dot) => (dot.visible = !soldier.carriedBy)); // кого несуть, той не діє
       view.ring.visible = soldier.id === selectedId;
-      view.group.visible = soldier.status !== 'dead';
+      view.group.visible = soldier.status === 'free'; // замотаного показує кокон, мертвого — ніхто
     }
   }
 

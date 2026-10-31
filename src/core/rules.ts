@@ -3,17 +3,25 @@
 // validate(state, action) — перевіряє дію й, якщо її не можна виконати, повертає причину.
 // apply(state, action)    — виконує дозволену дію: повертає НОВИЙ стан і список подій.
 // Події (events) потрібні рендеру й інтерфейсу: «солдат перейшов», «деталь встановлено» тощо.
+//
+// Порядок раунду (розділ 8 ТЗ): хід гравця → таймери коконів → ворожа фаза (павук повертається,
+// перевірка виявлення) → перевірка поразки → новий раунд. Усе це робить дія «Кінець ходу».
+// Виявлення під час ходу гравця (detectionMode = onEntry) перевіряється після кожної дії.
 
 import {
   cellsWithin,
+  freeSoldiersCount,
   freeSoldiersInCell,
+  getCocoon,
   getItem,
   getSoldier,
   itemCell,
+  pickNextLane,
+  seenCells,
   turretStatus,
   type GameState,
 } from './state';
-import type { Action, Held, Item, Soldier } from './types';
+import type { Action, Cocoon, Held, Item, Soldier } from './types';
 
 // Причини відмови. Текст українською для кожної — у i18n/uk.json (розділ "reason").
 export type RejectReason =
@@ -35,7 +43,8 @@ export type RejectReason =
   | 'tooFar' // кинути так далеко не можна
   | 'notAtTurret' // солдат не в клітинці турелі
   | 'turretNotRepaired' // не всі деталі встановлено
-  | 'turretNotLoaded'; // немає патрона
+  | 'turretNotLoaded' // немає патрона
+  | 'mustPickUp'; // кокон треба спершу підняти (якщо unwrapRequiresPickup = true)
 
 export type Validation = { ok: true } | { ok: false; reason: RejectReason };
 
@@ -45,7 +54,12 @@ export type GameEvent =
   | { type: 'thrown'; soldierId: string; target: Held; toCell: string }
   | { type: 'installed'; itemId: string }
   | { type: 'fired'; soldierId: string }
+  | { type: 'unwrapped'; soldierId: string; rescuerId: string }
+  | { type: 'captured'; soldierId: string; cellId: string }
+  | { type: 'died'; soldierId: string }
+  | { type: 'spiderTurned'; activeLane: number; nextLane: number }
   | { type: 'won' }
+  | { type: 'lost' }
   | { type: 'roundStarted'; round: number };
 
 export interface ApplyResult {
@@ -103,6 +117,21 @@ export function validate(state: GameState, action: Action): Validation {
       return OK;
     }
 
+    case 'unwrap': {
+      const actor = checkActor(state, action.soldierId);
+      if (!actor.ok) return actor;
+      const soldier = getSoldier(state, action.soldierId)!;
+      const cocoon = getCocoon(state, action.cocoonId);
+      if (!cocoon) return reject('unknownTarget');
+      if (cocoon.cellId !== soldier.cellId) return reject('targetNotHere');
+      const heldByMe = cocoon.carriedBy === soldier.id;
+      if (cocoon.carriedBy !== null && !heldByMe) return reject('targetBusy');
+      if (state.balance.unwrapRequiresPickup && !heldByMe) return reject('mustPickUp');
+      // Врятований стане вільним у цій клітинці — там має бути місце
+      if (freeSoldiersInCell(state, soldier.cellId) >= state.balance.maxSoldiersPerCell) return reject('cellFull');
+      return OK;
+    }
+
     case 'fire': {
       const actor = checkActor(state, action.soldierId);
       if (!actor.ok) return actor;
@@ -139,13 +168,29 @@ function checkPickupTarget(state: GameState, soldier: Soldier, target: Held): Va
     if (other.held && other.held.kind !== 'item') return reject('targetCarrying');
     return OK;
   }
-  return reject('unknownTarget'); // кокони — на етапі 4
+  // Кокон: лежить у тій самій клітинці й ніхто його не несе
+  const cocoon = getCocoon(state, target.id);
+  if (!cocoon) return reject('unknownTarget');
+  if (cocoon.carriedBy !== null) return reject('targetBusy');
+  if (cocoon.cellId !== soldier.cellId) return reject('targetNotHere');
+  return OK;
 }
 
 export function apply(state: GameState, action: Action): ApplyResult {
   const check = validate(state, action);
   if (!check.ok) throw new Error(`Недопустима дія ${action.type}: ${check.reason}`);
 
+  if (action.type === 'endTurn') return endTurn(state);
+
+  const result = applyPlayerAction(state, action);
+  // Виявлення одразу після дії гравця (рішення Колі: detectionMode = onEntry)
+  if (state.balance.detectionMode === 'onEntry') captureSeen(result, true);
+  checkDefeat(result);
+  return result;
+}
+
+// Дії солдатів під час ходу гравця
+function applyPlayerAction(state: GameState, action: Exclude<Action, { type: 'endTurn' }>): ApplyResult {
   switch (action.type) {
     case 'move': {
       const soldier = getSoldier(state, action.soldierId)!;
@@ -160,8 +205,10 @@ export function apply(state: GameState, action: Action): ApplyResult {
       let next = updateSoldier(state, soldier.id, { ap: soldier.ap - 1, held: action.target });
       if (action.target.kind === 'item') {
         next = updateItem(next, action.target.id, { cellId: null, carriedBy: soldier.id });
-      } else {
+      } else if (action.target.kind === 'soldier') {
         next = updateSoldier(next, action.target.id, { carriedBy: soldier.id });
+      } else {
+        next = updateCocoon(next, action.target.id, { carriedBy: soldier.id });
       }
       return { state: next, events: [{ type: 'pickedUp', soldierId: soldier.id, target: action.target }] };
     }
@@ -172,13 +219,34 @@ export function apply(state: GameState, action: Action): ApplyResult {
       let next = updateSoldier(state, soldier.id, { ap: soldier.ap - 1, held: null });
       if (target.kind === 'item') {
         next = updateItem(next, target.id, { cellId: action.toCell, carriedBy: null });
-      } else {
+      } else if (target.kind === 'soldier') {
         // Кинутий солдат приземляється живим, з тими AP, що мав (ПРИПУЩЕННЯ: «без втрат»)
         next = updateSoldier(next, target.id, { carriedBy: null });
         next = placeSoldier(next, target.id, action.toCell);
+      } else {
+        next = placeCocoon(updateCocoon(next, target.id, { carriedBy: null }), target.id, action.toCell);
       }
       const events: GameEvent[] = [{ type: 'thrown', soldierId: soldier.id, target, toCell: action.toCell }];
       return installAtTurret(next, events);
+    }
+
+    case 'unwrap': {
+      // Розмотати: кокон зникає, солдат стає вільним у клітинці рятівника й одразу має rescuedSoldierAp
+      const rescuer = getSoldier(state, action.soldierId)!;
+      const cocoon = getCocoon(state, action.cocoonId)!;
+      let next = updateSoldier(state, rescuer.id, {
+        ap: rescuer.ap - 1,
+        held: rescuer.held?.kind === 'cocoon' && rescuer.held.id === cocoon.id ? null : rescuer.held,
+      });
+      next = { ...next, cocoons: next.cocoons.filter((c) => c.id !== cocoon.id) };
+      next = updateSoldier(next, cocoon.soldierId, {
+        status: 'free',
+        ap: state.balance.rescuedSoldierAp,
+        cellId: rescuer.cellId,
+        carriedBy: null,
+        held: null,
+      });
+      return { state: next, events: [{ type: 'unwrapped', soldierId: cocoon.soldierId, rescuerId: rescuer.id }] };
     }
 
     case 'fire': {
@@ -190,17 +258,97 @@ export function apply(state: GameState, action: Action): ApplyResult {
         events: [{ type: 'fired', soldierId: soldier.id }, { type: 'won' }],
       };
     }
+  }
+}
 
-    case 'endTurn': {
-      // Новий раунд: усі вільні солдати отримують повні AP (невикористані не переносяться).
-      // Ворожу фазу й таймери коконів додамо на етапі 4.
-      const round = state.round + 1;
-      const soldiers = state.soldiers.map((s) => (s.status === 'free' ? { ...s, ap: state.balance.apPerTurn } : s));
-      return {
-        state: { ...state, round, soldiers },
-        events: [{ type: 'roundStarted', round }],
-      };
+// «Кінець ходу»: таймери коконів → ворожа фаза → перевірка поразки → новий раунд
+function endTurn(state: GameState): ApplyResult {
+  const result: ApplyResult = { state, events: [] };
+
+  // 1. Таймери коконів. Кокон, що з'явився в цьому ході гравця (fresh), цього разу не зменшується.
+  for (const cocoon of state.cocoons) {
+    if (cocoon.fresh) {
+      result.state = updateCocoon(result.state, cocoon.id, { fresh: false });
+      continue;
     }
+    const turnsLeft = cocoon.turnsLeft - 1;
+    if (turnsLeft > 0) {
+      result.state = updateCocoon(result.state, cocoon.id, { turnsLeft });
+      continue;
+    }
+    // Час вийшов: солдат гине, кокон зникає (і з рук того, хто його ніс)
+    let next = result.state;
+    if (cocoon.carriedBy) next = updateSoldier(next, cocoon.carriedBy, { held: null });
+    next = updateSoldier(next, cocoon.soldierId, { status: 'dead', ap: 0 });
+    result.state = { ...next, cocoons: next.cocoons.filter((c) => c.id !== cocoon.id) };
+    result.events.push({ type: 'died', soldierId: cocoon.soldierId });
+  }
+
+  // 2. Ворожа фаза: павук повертається до показаної заздалегідь лінії й обирає нову наступну
+  //    (павучата з'являться на етапі 5)
+  const s = result.state;
+  const activeLane = s.spider.nextLane;
+  const next = pickNextLane(s.rng, activeLane, s.world.level.lanes.length, s.balance.allowSameLane);
+  result.state = { ...s, spider: { activeLane, nextLane: next.value }, rng: next.rng };
+  result.events.push({ type: 'spiderTurned', activeLane, nextLane: next.value });
+
+  // 3. Перевірка виявлення: кого тепер бачить павук, той стає коконом
+  captureSeen(result, false);
+
+  // 4. Поразка — якщо не лишилось жодного вільного солдата
+  checkDefeat(result);
+  if (result.state.outcome !== 'playing') return result;
+
+  // 5. Новий раунд: усі вільні солдати отримують повні AP (невикористані не переносяться)
+  const round = result.state.round + 1;
+  const soldiers = result.state.soldiers.map((sol) =>
+    sol.status === 'free' ? { ...sol, ap: result.state.balance.apPerTurn } : sol,
+  );
+  result.state = { ...result.state, round, soldiers };
+  result.events.push({ type: 'roundStarted', round });
+  return result;
+}
+
+// Захоплення: кожен вільний солдат у клітинці, яку бачить ворог, миттєво стає коконом.
+// Решта його AP згорає, а те, що він тримав, лишається в тій самій клітинці.
+// duringPlayerTurn — кокон з'явився під час ходу гравця (тоді в кінці цього ходу таймер ще не тікає).
+function captureSeen(result: ApplyResult, duringPlayerTurn: boolean): void {
+  const seen = seenCells(result.state);
+  let victims = result.state.soldiers.filter((s) => s.status === 'free' && seen.has(s.cellId));
+  const limit = result.state.balance.capturesPerTurn;
+  if (limit !== null) victims = victims.slice(0, limit);
+
+  for (const { id } of victims) {
+    let next = result.state;
+    const victim = getSoldier(next, id)!;
+    // Якщо його хтось ніс — у носія звільняються руки
+    if (victim.carriedBy) next = updateSoldier(next, victim.carriedBy, { held: null });
+    // Те, що він тримав, падає в цю ж клітинку
+    if (victim.held?.kind === 'item') next = updateItem(next, victim.held.id, { cellId: victim.cellId, carriedBy: null });
+    if (victim.held?.kind === 'soldier') next = updateSoldier(next, victim.held.id, { carriedBy: null });
+    if (victim.held?.kind === 'cocoon') next = updateCocoon(next, victim.held.id, { carriedBy: null });
+
+    next = updateSoldier(next, id, { status: 'cocooned', ap: 0, held: null, carriedBy: null });
+    const cocoon: Cocoon = {
+      id: `cocoon_${id}`,
+      soldierId: id,
+      cellId: victim.cellId,
+      turnsLeft: next.balance.cocoonTurns,
+      carriedBy: null,
+      fresh: duringPlayerTurn,
+    };
+    result.state = { ...next, cocoons: [...next.cocoons, cocoon] };
+    result.events.push({ type: 'captured', soldierId: id, cellId: victim.cellId });
+  }
+
+  // Предмет, що випав у клітинці турелі, теж встановлюється
+  if (victims.length > 0) Object.assign(result, installAtTurret(result.state, result.events));
+}
+
+function checkDefeat(result: ApplyResult): void {
+  if (result.state.outcome === 'playing' && freeSoldiersCount(result.state) === 0) {
+    result.state = { ...result.state, outcome: 'lost' };
+    result.events.push({ type: 'lost' });
   }
 }
 
@@ -214,12 +362,23 @@ function updateItem(state: GameState, id: string, patch: Partial<Item>): GameSta
   return { ...state, items: state.items.map((i) => (i.id === id ? { ...i, ...patch } : i)) };
 }
 
-// Переставити солдата в клітинку. Солдат, якого він несе, переміщується разом із ним.
+function updateCocoon(state: GameState, id: string, patch: Partial<Cocoon>): GameState {
+  return { ...state, cocoons: state.cocoons.map((c) => (c.id === id ? { ...c, ...patch } : c)) };
+}
+
+// Переставити солдата в клітинку. Солдат чи кокон, якого він несе, переміщується разом із ним.
 function placeSoldier(state: GameState, id: string, cellId: string): GameState {
   let next = updateSoldier(state, id, { cellId });
   const held = getSoldier(next, id)!.held;
   if (held?.kind === 'soldier') next = updateSoldier(next, held.id, { cellId });
+  if (held?.kind === 'cocoon') next = placeCocoon(next, held.id, cellId);
   return next;
+}
+
+// Переставити кокон; солдат усередині «їде» разом із ним
+function placeCocoon(state: GameState, id: string, cellId: string): GameState {
+  const next = updateCocoon(state, id, { cellId });
+  return updateSoldier(next, getCocoon(next, id)!.soldierId, { cellId });
 }
 
 // Предмет, що опинився в клітинці турелі (принесли або кинули), встановлюється автоматично
@@ -263,8 +422,16 @@ export function pickupOptions(state: GameState, soldierId: string): Held[] {
   const candidates: Held[] = [
     ...state.items.filter((i) => i.cellId === soldier.cellId).map((i) => ({ kind: 'item' as const, id: i.id })),
     ...state.soldiers.filter((s) => s.cellId === soldier.cellId).map((s) => ({ kind: 'soldier' as const, id: s.id })),
+    ...state.cocoons.filter((c) => c.cellId === soldier.cellId).map((c) => ({ kind: 'cocoon' as const, id: c.id })),
   ];
   return candidates.filter((target) => validate(state, { type: 'pickup', soldierId, target }).ok);
+}
+
+// Кокони, які солдат може розмотати зараз
+export function unwrapOptions(state: GameState, soldierId: string): string[] {
+  return state.cocoons
+    .filter((c) => validate(state, { type: 'unwrap', soldierId, cocoonId: c.id }).ok)
+    .map((c) => c.id);
 }
 
 // Чи лишились у когось AP (якщо ні — пора натискати «Кінець ходу»)

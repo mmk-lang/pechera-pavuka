@@ -17,6 +17,7 @@ export interface LevelCell {
   x: number;
   z: number;
   rockId: string;
+  exposedTo: number[]; // з яких ліній павука видно цю клітинку (перевіряє validateLevel)
 }
 
 // Лінія огляду павука: вузький клин від павука під кутом angleDeg
@@ -57,12 +58,12 @@ export interface LevelData {
 }
 
 // Клітинка в грі: те саме, що в JSON, плюс сусіди — куди з неї можна піти за один крок.
-// Сусідів рахує graph.ts. Видимість (exposedTo) додамо на етапі 4.
+// Сусідів рахує graph.ts.
 export interface Cell extends LevelCell {
   neighbors: string[];
 }
 
-// Що солдат тримає в руках (знадобиться на етапі 3)
+// Що солдат тримає в руках: предмет, іншого солдата або кокон
 export type Held = { kind: 'item' | 'soldier' | 'cocoon'; id: string };
 
 export type SoldierStatus = 'free' | 'cocooned' | 'dead';
@@ -86,10 +87,24 @@ export interface Item {
   installed: boolean;
 }
 
-// Дії гравця. «Розмотати» додамо на етапі 4.
+// Кокон: замотаний павуком солдат. Лежить у клітинці або його несуть.
+// Якщо за turnsLeft ходів гравця його не розмотати — солдат гине.
+export interface Cocoon {
+  id: string;
+  soldierId: string; // хто всередині
+  cellId: string; // де лежить (якщо несуть — там, де носій)
+  turnsLeft: number;
+  carriedBy: string | null;
+  // true — кокон з'явився під час ходу гравця: у кінці цього ж ходу таймер ще не зменшується
+  // (так у гравця є цей хід плюс ще три — див. розділ 7 ТЗ)
+  fresh: boolean;
+}
+
+// Дії гравця
 export type Action =
   | { type: 'move'; soldierId: string; toCell: string }
   | { type: 'pickup'; soldierId: string; target: Held }
   | { type: 'throw'; soldierId: string; toCell: string }
+  | { type: 'unwrap'; soldierId: string; cocoonId: string }
   | { type: 'fire'; soldierId: string }
   | { type: 'endTurn' };

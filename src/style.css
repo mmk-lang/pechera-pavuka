@@ -301,3 +301,64 @@ body {
     padding: 6px 10px;
   }
 }
+
+/* Легенда небезпеки в панелі зліва */
+.hud-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  margin: 4px 0;
+  font-size: 13px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ring {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 3px solid;
+}
+
+.ring.danger-now {
+  border-color: #ff2a1a;
+}
+
+.ring.danger-next {
+  border-color: #ff9a2a;
+  border-style: dashed;
+}
+
+.hud-seed {
+  margin-top: 4px;
+  font-size: 11px;
+  opacity: 0.5;
+}
+
+/* Картки замотаних і загиблих солдатів */
+.soldier-card.cocooned .soldier-status {
+  color: #ff9a2a;
+  font-weight: 700;
+}
+
+.soldier-card.dead {
+  text-decoration: line-through;
+}
+
+/* Кнопка «Розмотати» — зелена */
+.action-panel button.rescue {
+  background: #6fe36b;
+}
+
+/* Екран поразки — червона рамка */
+.end-screen.defeat .end-box {
+  border-color: #ff3b2a;
+}
+
+.end-screen.defeat h2 {
+  color: #ff3b2a;
+}

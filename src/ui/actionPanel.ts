@@ -4,7 +4,7 @@
 export interface PanelButton {
   label: string;
   onClick(): void;
-  style?: 'fire' | 'cancel';
+  style?: 'fire' | 'cancel' | 'rescue';
 }
 
 export class ActionPanel {
