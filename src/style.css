@@ -362,3 +362,60 @@ body {
 .end-screen.defeat h2 {
   color: #ff3b2a;
 }
+
+/* Легенда: стрілка павучати */
+.legend-arrow {
+  color: #ff4a2a;
+  margin-right: 4px;
+}
+
+/* Список подій під панеллю мети: нові зверху, старі блідніші */
+.events-title {
+  margin-top: 8px;
+}
+
+.event-list {
+  max-width: 230px;
+  font-size: 13px;
+}
+
+.event {
+  opacity: 0.85;
+}
+
+.event:nth-child(n + 3) {
+  opacity: 0.55;
+}
+
+.event.good {
+  color: #8dff8a;
+}
+
+.event.bad {
+  color: #ff6a5a;
+  font-weight: 700;
+}
+
+.event.warn {
+  color: #ffd24a;
+}
+
+.event.round {
+  opacity: 0.6;
+  font-style: italic;
+}
+
+/* На телефоні — лише дві останні події, щоб панель не закривала печеру */
+@media (max-width: 600px) {
+  .events-title {
+    display: none;
+  }
+  .event-list {
+    max-width: 170px;
+    font-size: 11px;
+    margin-top: 4px;
+  }
+  .event:nth-child(n + 3) {
+    display: none;
+  }
+}

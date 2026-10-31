@@ -1,4 +1,4 @@
-// Збирає всю 3D-сцену: рендерер, світло, печеру, камені, клітинки, солдатів, предмети, турель і павука.
+// Збирає всю 3D-сцену: рендерер, світло, печеру, камені, клітинки, солдатів, предмети, турель, павука й павучат.
 // Рендер лише читає дані рівня й малює — правил гри тут немає.
 
 import * as THREE from 'three';
@@ -11,6 +11,7 @@ import { createRocks } from './rocks';
 import { ItemsView } from './items';
 import { LanesView } from './lanes';
 import { SpiderView } from './spider';
+import { SpiderlingsView } from './spiderlings';
 import { TurretView } from './turret';
 import { UnitsView } from './units';
 
@@ -23,6 +24,7 @@ export interface GameScene {
   items: ItemsView;
   turret: TurretView;
   spider: SpiderView;
+  spiderlings: SpiderlingsView;
   lanes: LanesView;
   cocoons: CocoonsView;
   render(dt: number): void;
@@ -64,9 +66,10 @@ export function createGameScene(container: HTMLElement, state: GameState): GameS
   const items = new ItemsView(state);
   const turret = new TurretView(state.world);
   const spider = new SpiderView(level.spider.x, level.spider.z);
+  const spiderlings = new SpiderlingsView(state);
   const lanes = new LanesView(level);
   const cocoons = new CocoonsView();
-  scene.add(lanes.group, cells.group, units.group, items.group, cocoons.group, turret.group, spider.group);
+  scene.add(lanes.group, cells.group, units.group, items.group, cocoons.group, turret.group, spider.group, spiderlings.group);
 
   const rig = new CameraRig(state.balance.camera, level.cave);
 
@@ -90,6 +93,7 @@ export function createGameScene(container: HTMLElement, state: GameState): GameS
     items,
     turret,
     spider,
+    spiderlings,
     lanes,
     cocoons,
     render: (dt) => {
@@ -98,6 +102,7 @@ export function createGameScene(container: HTMLElement, state: GameState): GameS
       cocoons.update(dt, units);
       turret.update(dt);
       spider.update(dt);
+      spiderlings.update(dt);
       renderer.render(scene, rig.camera);
     },
   };

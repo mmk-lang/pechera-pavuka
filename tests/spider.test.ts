@@ -9,7 +9,8 @@ import type { Action, Cocoon, LevelData } from '../src/core/types';
 import { computeExposure } from '../src/core/visibility';
 
 const level = levelJson as LevelData;
-const balance = balanceJson as Balance;
+// Без павучат: тут перевіряємо інші правила (павучат — у spiderlings.test.ts)
+const balance: Balance = { ...(balanceJson as Balance), spiderlings: 0 };
 
 // Клітинки рівня, яких павук не бачить з жодної лінії
 const SAFE = level.cells.filter((c) => c.exposedTo.length === 0).map((c) => c.id);

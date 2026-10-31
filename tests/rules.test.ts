@@ -8,7 +8,8 @@ import { createInitialState, freeSoldiersInCell, type GameState } from '../src/c
 import type { LevelData } from '../src/core/types';
 
 const level = levelJson as LevelData;
-const balance = balanceJson as Balance;
+// Без павучат: тут перевіряємо інші правила (павучат — у spiderlings.test.ts)
+const balance: Balance = { ...(balanceJson as Balance), spiderlings: 0 };
 
 // Допоміжне: ставимо солдатів у потрібні клітинки (решта полів — як на старті)
 function stateWith(cells: string[]): GameState {

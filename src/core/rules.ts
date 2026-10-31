@@ -4,8 +4,9 @@
 // apply(state, action)    — виконує дозволену дію: повертає НОВИЙ стан і список подій.
 // Події (events) потрібні рендеру й інтерфейсу: «солдат перейшов», «деталь встановлено» тощо.
 //
-// Порядок раунду (розділ 8 ТЗ): хід гравця → таймери коконів → ворожа фаза (павук повертається,
-// перевірка виявлення) → перевірка поразки → новий раунд. Усе це робить дія «Кінець ходу».
+// Порядок раунду (розділ 8 ТЗ): хід гравця → таймери коконів → ворожа фаза (павучата ходять,
+// павук повертається, перевірка виявлення) → перевірка поразки → новий раунд.
+// Усе це робить дія «Кінець ходу».
 // Виявлення під час ходу гравця (detectionMode = onEntry) перевіряється після кожної дії.
 
 import {
@@ -21,6 +22,7 @@ import {
   turretStatus,
   type GameState,
 } from './state';
+import { moveSpiderlings } from './spiderlings';
 import type { Action, Cocoon, Held, Item, Soldier } from './types';
 
 // Причини відмови. Текст українською для кожної — у i18n/uk.json (розділ "reason").
@@ -58,6 +60,8 @@ export type GameEvent =
   | { type: 'captured'; soldierId: string; cellId: string }
   | { type: 'died'; soldierId: string }
   | { type: 'spiderTurned'; activeLane: number; nextLane: number }
+  | { type: 'spiderlingMoved'; spiderlingId: string; fromCell: string; toCell: string; facingCellId: string }
+  | { type: 'spiderlingKilled'; spiderlingId: string; cellId: string; itemId: string }
   | { type: 'won' }
   | { type: 'lost' }
   | { type: 'roundStarted'; round: number };
@@ -217,8 +221,10 @@ function applyPlayerAction(state: GameState, action: Exclude<Action, { type: 'en
       const soldier = getSoldier(state, action.soldierId)!;
       const target = soldier.held!;
       let next = updateSoldier(state, soldier.id, { ap: soldier.ap - 1, held: null });
+      const events: GameEvent[] = [{ type: 'thrown', soldierId: soldier.id, target, toCell: action.toCell }];
       if (target.kind === 'item') {
         next = updateItem(next, target.id, { cellId: action.toCell, carriedBy: null });
+        next = killSpiderling(next, action.toCell, target.id, events);
       } else if (target.kind === 'soldier') {
         // Кинутий солдат приземляється живим, з тими AP, що мав (ПРИПУЩЕННЯ: «без втрат»)
         next = updateSoldier(next, target.id, { carriedBy: null });
@@ -226,7 +232,6 @@ function applyPlayerAction(state: GameState, action: Exclude<Action, { type: 'en
       } else {
         next = placeCocoon(updateCocoon(next, target.id, { carriedBy: null }), target.id, action.toCell);
       }
-      const events: GameEvent[] = [{ type: 'thrown', soldierId: soldier.id, target, toCell: action.toCell }];
       return installAtTurret(next, events);
     }
 
@@ -284,15 +289,27 @@ function endTurn(state: GameState): ApplyResult {
     result.events.push({ type: 'died', soldierId: cocoon.soldierId });
   }
 
-  // 2. Ворожа фаза: павук повертається до показаної заздалегідь лінії й обирає нову наступну
-  //    (павучата з'являться на етапі 5)
+  // 2. Ворожа фаза. Спершу павучата: кожне переходить на сусідню клітинку й обирає, куди дивитись.
+  const moved = moveSpiderlings(result.state.world, result.state.rng, result.state.spiderlings);
+  result.state = { ...result.state, spiderlings: moved.spiderlings, rng: moved.rng };
+  for (const step of moved.steps) {
+    result.events.push({
+      type: 'spiderlingMoved',
+      spiderlingId: step.id,
+      fromCell: step.fromCell,
+      toCell: step.toCell,
+      facingCellId: step.facingCellId,
+    });
+  }
+
+  //    Потім павук повертається до показаної заздалегідь лінії й обирає нову наступну
   const s = result.state;
   const activeLane = s.spider.nextLane;
   const next = pickNextLane(s.rng, activeLane, s.world.level.lanes.length, s.balance.allowSameLane);
   result.state = { ...s, spider: { activeLane, nextLane: next.value }, rng: next.rng };
   result.events.push({ type: 'spiderTurned', activeLane, nextLane: next.value });
 
-  // 3. Перевірка виявлення: кого тепер бачить павук, той стає коконом
+  // 3. Одна перевірка виявлення: кого тепер бачать павук або павучата, той стає коконом
   captureSeen(result, false);
 
   // 4. Поразка — якщо не лишилось жодного вільного солдата
@@ -379,6 +396,16 @@ function placeSoldier(state: GameState, id: string, cellId: string): GameState {
 function placeCocoon(state: GameState, id: string, cellId: string): GameState {
   const next = updateCocoon(state, id, { cellId });
   return updateSoldier(next, getCocoon(next, id)!.soldierId, { cellId });
+}
+
+// Кинутий предмет, що впав у клітинку з павучам, вбиває його й сам лишається там
+// (рішення Колі, itemKillsSpiderling). ПРИПУЩЕННЯ: один предмет вбиває одне павуча.
+function killSpiderling(state: GameState, cellId: string, itemId: string, events: GameEvent[]): GameState {
+  if (!state.balance.itemKillsSpiderling) return state;
+  const victim = state.spiderlings.find((s) => s.cellId === cellId);
+  if (!victim) return state;
+  events.push({ type: 'spiderlingKilled', spiderlingId: victim.id, cellId, itemId });
+  return { ...state, spiderlings: state.spiderlings.filter((s) => s.id !== victim.id) };
 }
 
 // Предмет, що опинився в клітинці турелі (принесли або кинули), встановлюється автоматично

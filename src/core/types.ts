@@ -100,6 +100,14 @@ export interface Cocoon {
   fresh: boolean;
 }
 
+// Павуча: маленький ворог. Стоїть у клітинці й дивиться на одну із сусідніх.
+// Бачить солдатів у своїй клітинці та в тій, на яку дивиться (рішення Колі).
+export interface Spiderling {
+  id: string;
+  cellId: string; // де стоїть
+  facingCellId: string; // на яку сусідню клітинку дивиться
+}
+
 // Дії гравця
 export type Action =
   | { type: 'move'; soldierId: string; toCell: string }

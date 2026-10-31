@@ -7,7 +7,8 @@ import { cellsUnderLane, createInitialState, freeSoldiersInCell, getSoldier, typ
 import type { Action, LevelData } from '../src/core/types';
 
 const level = levelJson as LevelData;
-const balance = balanceJson as Balance;
+// Без павучат: тут перевіряємо інші правила (павучат — у spiderlings.test.ts)
+const balance: Balance = { ...(balanceJson as Balance), spiderlings: 0 };
 
 // Небезпечні зараз клітинки: під активною лінією (захоплять одразу)
 // і під наступною (захоплять наприкінці раунду, якщо там лишитись)

@@ -3,9 +3,10 @@
 
 import * as THREE from 'three';
 
-export function createSpider(x: number, z: number): THREE.Group {
+// color — колір тіла (павучата світліші, щоб їх було видно на темній підлозі)
+export function createSpider(x: number, z: number, color = 0x1c1416): THREE.Group {
   const spider = new THREE.Group();
-  const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x1c1416, roughness: 0.6, flatShading: true });
+  const bodyMaterial = new THREE.MeshStandardMaterial({ color, roughness: 0.6, flatShading: true });
   const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0xff3030 });
 
   // Черевце й голова

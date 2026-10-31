@@ -20,7 +20,7 @@ import { CameraInput } from './input/cameraInput';
 import { Picker } from './input/picking';
 import { createGameScene, type GameScene } from './render/scene';
 import { ActionPanel, type PanelButton } from './ui/actionPanel';
-import { createHud, type Hud } from './ui/hud';
+import { createHud, type Hud, type LogKind } from './ui/hud';
 import { showDefeat, showVictory } from './ui/screens';
 
 // Режим кліку по клітинці: звичайний (піти) або вибір, куди кинути
@@ -118,7 +118,7 @@ export class Game {
     const soldier = getSoldier(this.state, this.selectedId)!;
     if (soldier.cellId === cellId) return; // клік по своїй клітинці — нічого не робимо
     const move: Action = { type: 'move', soldierId: this.selectedId, toCell: cellId };
-    // Крок під погляд павука = миттєвий кокон. Щоб не зробити це випадково, просимо клікнути ще раз.
+    // Крок під погляд павука чи павучати = миттєвий кокон. Щоб не зробити це випадково, просимо клікнути ще раз.
     if (seenCells(this.state).has(cellId) && validate(this.state, move).ok && this.dangerConfirm !== cellId) {
       this.dangerConfirm = cellId;
       this.hud.message(t('dangerConfirm'));
@@ -151,27 +151,38 @@ export class Game {
     this.refresh();
   }
 
+  // Події з ядра: підказка внизу (toast), рядок у списку подій і анімації на сцені
   private showEvents(events: GameEvent[]): void {
+    // Ворожу фазу пишемо в список одним рядком, а не окремо для кожного павучати
+    if (events.some((e) => e.type === 'spiderTurned')) this.hud.log(t('event.enemyPhase'));
     for (const event of events) {
       switch (event.type) {
         case 'roundStarted':
           this.hud.message(t('roundStarted', { n: event.round }));
+          this.hud.log(t('event.round', { n: event.round }), 'round');
           break;
         case 'installed':
           this.hud.message(t('installed', { name: t(`item.${event.itemId}`) }));
+          this.hud.log(t('event.installed', { name: t(`item.${event.itemId}`) }), 'good');
           break;
+        case 'spiderlingKilled': {
+          const text = t('event.spiderlingKilled', { item: t(`item.${event.itemId}`) });
+          this.hud.message(text);
+          this.hud.log(text, 'good');
+          break;
+        }
         case 'fired':
           this.scene.turret.fire();
           this.scene.spider.die();
           break;
         case 'unwrapped':
-          this.hud.message(t('event.unwrapped', { name: this.soldierName(event.soldierId) }));
+          this.say(t('event.unwrapped', { name: this.soldierName(event.soldierId) }), 'good');
           break;
         case 'captured':
-          this.hud.message(t('event.captured', { name: this.soldierName(event.soldierId) }));
+          this.say(t('event.captured', { name: this.soldierName(event.soldierId) }), 'warn');
           break;
         case 'died':
-          this.hud.message(t('event.died', { name: this.soldierName(event.soldierId) }));
+          this.say(t('event.died', { name: this.soldierName(event.soldierId) }), 'bad');
           break;
         case 'spiderTurned':
           this.scene.spider.lookAtLane(this.laneAngle(event.activeLane));
@@ -186,6 +197,12 @@ export class Game {
           break;
       }
     }
+  }
+
+  // Важлива подія: і підказкою внизу, і рядком у списку подій
+  private say(text: string, kind: LogKind): void {
+    this.hud.message(text);
+    this.hud.log(text, kind);
   }
 
   private laneAngle(laneId: number): number {
@@ -251,6 +268,7 @@ export class Game {
     this.scene.items.sync(this.state);
     this.scene.turret.sync(turretStatus(this.state));
     this.scene.cocoons.sync(this.state);
+    this.scene.spiderlings.sync(this.state);
     // Павук: активна лінія завжди видно; наступну — якщо telegraphNextLane = true (рішення Колі)
     const { activeLane, nextLane } = this.state.spider;
     const telegraph = this.state.balance.telegraphNextLane;

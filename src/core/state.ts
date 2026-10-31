@@ -6,7 +6,8 @@
 import type { Balance } from './balance';
 import { buildCellGraph } from './graph';
 import { randomInt, randomSeed } from './rng';
-import type { Cell, Cocoon, Item, LevelData, Soldier } from './types';
+import { cellsSeenBySpiderlings, placeSpiderlings } from './spiderlings';
+import type { Cell, Cocoon, Item, LevelData, Soldier, Spiderling } from './types';
 
 // Світ — те, що не змінюється протягом партії: рівень і граф клітинок
 export interface World {
@@ -31,6 +32,7 @@ export interface GameState {
   readonly items: readonly Item[];
   readonly cocoons: readonly Cocoon[];
   readonly spider: SpiderState;
+  readonly spiderlings: readonly Spiderling[]; // живі павучата (убиті зникають назавжди)
   readonly outcome: Outcome;
   readonly seed: number; // з якого seed почалась партія (показуємо на екрані)
   readonly rng: number; // поточний стан генератора випадкових чисел (див. rng.ts)
@@ -41,7 +43,7 @@ export function createWorld(level: LevelData, balance: Balance): World {
 }
 
 // Початковий стан: солдати біля старту, у кожного повні AP; предмети лежать там, де вказано в рівні;
-// павук дивиться на випадкову лінію. seed — зерно випадковості (за замовчуванням з balance.json або випадкове).
+// павук дивиться на випадкову лінію; павучата розставлені по печері. seed — зерно випадковості (за замовчуванням з balance.json або випадкове).
 export function createInitialState(level: LevelData, balance: Balance, seed = balance.seed ?? randomSeed()): GameState {
   const world = createWorld(level, balance);
   const startCells = startPlacement(world, balance.soldiers, balance.maxSoldiersPerCell);
@@ -63,6 +65,7 @@ export function createInitialState(level: LevelData, balance: Balance, seed = ba
   // Павук: випадкова активна лінія і випадкова наступна (інша, якщо allowSameLane = false)
   const first = randomInt(seed, level.lanes.length);
   const next = pickNextLane(first.rng, first.value, level.lanes.length, balance.allowSameLane);
+  const placed = placeSpiderlings(world, next.rng, balance.spiderlings, startCells);
   return {
     world,
     balance,
@@ -71,9 +74,10 @@ export function createInitialState(level: LevelData, balance: Balance, seed = ba
     items,
     cocoons: [],
     spider: { activeLane: first.value, nextLane: next.value },
+    spiderlings: placed.spiderlings,
     outcome: 'playing',
     seed,
-    rng: next.rng,
+    rng: placed.rng,
   };
 }
 
@@ -126,9 +130,11 @@ export function getCocoon(state: GameState, cocoonId: string): Cocoon | undefine
   return state.cocoons.find((c) => c.id === cocoonId);
 }
 
-// Клітинки, які павук бачить зараз (під активною лінією). Павучат додамо на етапі 5.
+// Клітинки, які вороги бачать зараз: під активною лінією павука плюс те, що бачать павучата
 export function seenCells(state: GameState): Set<string> {
-  return cellsUnderLane(state, state.spider.activeLane);
+  const seen = cellsUnderLane(state, state.spider.activeLane);
+  for (const cellId of cellsSeenBySpiderlings(state.spiderlings)) seen.add(cellId);
+  return seen;
 }
 
 export function cellsUnderLane(state: GameState, lane: number): Set<string> {

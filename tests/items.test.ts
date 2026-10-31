@@ -7,7 +7,8 @@ import { createInitialState, getItem, getSoldier, turretStatus, type GameState }
 import type { Action, LevelData } from '../src/core/types';
 
 const level = levelJson as LevelData;
-const balance = balanceJson as Balance;
+// Без павучат: тут перевіряємо інші правила (павучат — у spiderlings.test.ts)
+const balance: Balance = { ...(balanceJson as Balance), spiderlings: 0 };
 const TURRET = level.turretCell;
 
 // Допоміжне: солдати в заданих клітинках, предмети — у заданих клітинках (або як у рівні)

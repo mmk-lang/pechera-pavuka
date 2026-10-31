@@ -1,6 +1,6 @@
 // Інтерфейс поверх гри:
 //   зліва вгорі — назва, номер раунду, підказка з керування, помилки рівня;
-//   справа вгорі — панель мети: деталі 0/4, патрон, оператор;
+//   справа вгорі — панель мети: деталі 0/4, патрон, оператор; під нею — список подій;
 //   унизу — картки солдатів (очки дій, що несе) і кнопка «Кінець ходу»;
 //   посередині внизу — коротке повідомлення («Немає очок дій» тощо).
 
@@ -19,7 +19,12 @@ export interface Hud {
   // nameOf перетворює те, що солдат тримає, на назву («Деталь 2», «Солдат 3»)
   update(state: GameState, selectedId: string | null, allApSpent: boolean, nameOf: (held: Held) => string): void;
   message(text: string): void;
+  // Додати рядок у список подій. kind — колір: good (зелений), bad (червоний), warn (жовтий), round (роздільник)
+  log(text: string, kind?: LogKind): void;
 }
+
+export type LogKind = 'good' | 'bad' | 'warn' | 'round' | 'info';
+const LOG_SIZE = 6; // скільки останніх подій показуємо
 
 // Невеликий помічник: створює HTML-елемент із класом і текстом
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, text = ''): HTMLElementTagNameMap[K] {
@@ -47,6 +52,10 @@ export function createHud(root: HTMLElement, state: GameState, problems: LevelPr
     item.append(el('span', `ring ${cls}`), document.createTextNode(t(key)));
     legend.append(item);
   }
+  // Павуча: стрілка показує, на яку клітинку воно дивиться
+  const arrowItem = el('span', 'legend-item');
+  arrowItem.append(el('span', 'legend-arrow', '➤'), document.createTextNode(t('legend.spiderling')));
+  legend.append(arrowItem);
   info.append(legend);
   const isTouch = window.matchMedia('(pointer: coarse)').matches;
   info.append(el('div', 'hud-controls', t(isTouch ? 'controlsTouch' : 'controlsDesktop')));
@@ -64,6 +73,11 @@ export function createHud(root: HTMLElement, state: GameState, problems: LevelPr
   const goalCartridge = el('div', 'goal-line');
   const goalOperator = el('div', 'goal-line');
   goal.append(goalParts, goalCartridge, goalOperator);
+
+  // --- Список подій (під метою): нові зверху ---
+  goal.append(el('div', 'goal-title events-title', t('events.title')));
+  const eventList = el('div', 'event-list');
+  goal.append(eventList);
 
   // --- Нижня панель: картки солдатів і кнопка ---
   const bar = el('div', 'bottom-bar');
@@ -145,6 +159,10 @@ export function createHud(root: HTMLElement, state: GameState, problems: LevelPr
       toast.classList.add('visible');
       window.clearTimeout(toastTimer);
       toastTimer = window.setTimeout(() => toast.classList.remove('visible'), 2200);
+    },
+    log(text, kind = 'info') {
+      eventList.prepend(el('div', `event ${kind}`, text));
+      while (eventList.children.length > LOG_SIZE) eventList.lastElementChild!.remove();
     },
   };
 }
