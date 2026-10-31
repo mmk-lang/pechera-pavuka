@@ -6,6 +6,7 @@ import type { LevelProblem } from './core/level';
 import {
   anyApLeft,
   apply,
+  isUndoable,
   pickupOptions,
   reachableCells,
   throwTargets,
@@ -13,6 +14,7 @@ import {
   validate,
   type GameEvent,
 } from './core/rules';
+import { cellRisks } from './core/risk';
 import { cellsUnderLane, getCocoon, getSoldier, seenCells, turretStatus, type GameState } from './core/state';
 import type { Action, Held } from './core/types';
 import { t } from './i18n';
@@ -20,7 +22,9 @@ import { CameraInput } from './input/cameraInput';
 import { Picker } from './input/picking';
 import { createGameScene, type GameScene } from './render/scene';
 import { ActionPanel, type PanelButton } from './ui/actionPanel';
+import { currentHint } from './ui/hints';
 import { createHud, type Hud, type LogKind } from './ui/hud';
+import { restartWith, type GameOptions } from './ui/options';
 import { showDefeat, showVictory } from './ui/screens';
 
 // Режим кліку по клітинці: звичайний (піти) або вибір, куди кинути
@@ -34,6 +38,9 @@ export class Game {
   private mode: Mode = 'move';
   // Клітинка під поглядом павука, куди гравець клікнув один раз: другий клік — підтвердження
   private dangerConfirm: string | null = null;
+  // Для «Скасувати»: попередні стани в цьому ході гравця (останній — найсвіжіший)
+  private history: GameState[] = [];
+  private actionsDone = 0; // скільки дій зроблено за гру (для першої підказки)
   private scene: GameScene;
   private hud: Hud;
   private panel: ActionPanel;
@@ -43,6 +50,7 @@ export class Game {
     private readonly root: HTMLElement,
     initialState: GameState,
     problems: LevelProblem[],
+    private readonly options: GameOptions,
   ) {
     this.state = initialState;
     this.scene = createGameScene(root, initialState);
@@ -58,14 +66,24 @@ export class Game {
     this.hud = createHud(root, initialState, problems, {
       onSelectSoldier: (id) => this.select(id),
       onEndTurn: () => this.dispatch({ type: 'endTurn' }),
+      onUndo: () => this.undo(),
+      onMenu: () => {
+        if (window.confirm(t('menuConfirm'))) restartWith({ ...this.options, seed: null, play: false });
+      },
     });
     this.panel = new ActionPanel(root);
     this.scene.spider.lookAtLane(this.laneAngle(initialState.spider.activeLane), true);
 
-    // Клавіші: 1–4 — вибрати солдата, Enter — кінець ходу, Esc — скасувати кидок
+    // Клавіші: 1–4 — вибрати солдата, Enter — кінець ходу, Esc — скасувати кидок,
+    // Backspace або Ctrl+Z — скасувати останню дію
     window.addEventListener('keydown', (e) => {
       // Якщо фокус на кнопці, Enter і так її натисне — не робимо дію двічі. Затиснуту клавішу теж ігноруємо.
       if (e.repeat || e.target instanceof HTMLButtonElement) return;
+      if (e.key === 'Backspace' || (e.key === 'z' && (e.ctrlKey || e.metaKey))) {
+        e.preventDefault();
+        this.undo();
+        return;
+      }
       const n = Number(e.key);
       if (n >= 1 && n <= this.state.soldiers.length) this.select(this.state.soldiers[n - 1].id);
       if (e.key === 'Enter') this.dispatch({ type: 'endTurn' });
@@ -136,8 +154,13 @@ export class Game {
       return;
     }
     const hadAp = anyApLeft(this.state);
+    const before = this.state;
     const result = apply(this.state, action);
     this.state = result.state;
+    this.actionsDone++;
+    // Запам'ятовуємо стан для «Скасувати». Після незворотної дії (кокон, кінець ходу…) історію стираємо.
+    if (isUndoable(action, result.events)) this.history.push(before);
+    else this.history = [];
     this.mode = 'move'; // після будь-якої дії повертаємось у звичайний режим
     this.dangerConfirm = null;
     this.showEvents(result.events);
@@ -152,6 +175,20 @@ export class Game {
   }
 
   // Події з ядра: підказка внизу (toast), рядок у списку подій і анімації на сцені
+  // «Скасувати»: повертаємо стан до останньої дії. Вибір лишаємо на тому, хто діяв.
+  private undo(): void {
+    const previous = this.history.pop();
+    if (!previous || this.state.outcome !== 'playing') {
+      this.hud.message(t('nothingToUndo'));
+      return;
+    }
+    this.state = previous;
+    this.mode = 'move';
+    this.dangerConfirm = null;
+    this.hud.message(t('undone'));
+    this.refresh();
+  }
+
   private showEvents(events: GameEvent[]): void {
     // Ворожу фазу пишемо в список одним рядком, а не окремо для кожного павучати
     if (events.some((e) => e.type === 'spiderTurned')) this.hud.log(t('event.enemyPhase'));
@@ -189,11 +226,11 @@ export class Game {
           break;
         case 'won':
           this.selectedId = null;
-          window.setTimeout(() => showVictory(this.root, this.state.round), END_SCREEN_DELAY);
+          window.setTimeout(() => showVictory(this.root, this.state.round, this.state.seed, this.options), END_SCREEN_DELAY);
           break;
         case 'lost':
           this.selectedId = null;
-          window.setTimeout(() => showDefeat(this.root, this.state.round), END_SCREEN_DELAY);
+          window.setTimeout(() => showDefeat(this.root, this.state.round, this.state.seed, this.options), END_SCREEN_DELAY);
           break;
       }
     }
@@ -276,7 +313,19 @@ export class Game {
     this.scene.cells.setDanger(seenCells(this.state), telegraph ? cellsUnderLane(this.state, nextLane) : new Set());
     const cells = !id ? [] : this.mode === 'throw' ? throwTargets(this.state, id) : reachableCells(this.state, id);
     this.scene.cells.setHighlight(cells, this.mode);
-    this.hud.update(this.state, id, !anyApLeft(this.state), (target) => this.nameOf(target));
+    // Ризик клітинок (опція showRisk): ймовірність, що клітинку бачитимуть після ворожої фази
+    this.scene.cells.setRisk(this.state.balance.showRisk && this.state.outcome === 'playing' ? cellRisks(this.state) : null);
+    const hint = this.state.balance.showHints ? currentHint(this.state, id, this.actionsDone) : null;
+    this.hud.update(
+      this.state,
+      id,
+      {
+        allApSpent: !anyApLeft(this.state),
+        canUndo: this.history.length > 0 && this.state.outcome === 'playing',
+        hint: hint ? t(hint.key, hint.params) : null,
+      },
+      (target) => this.nameOf(target),
+    );
     this.panel.setButtons(this.panelButtons());
   }
 }

@@ -26,7 +26,8 @@ export interface Balance {
   maxSoldiersPerCell: number;
   itemKillsSpiderling: boolean;
   capturesPerTurn: number | null; // null — без ліміту
-  showRisk: boolean;
+  showRisk: boolean; // показувати ймовірність небезпеки для клітинок
+  showHints: boolean; // показувати підказки для нового гравця
   cellsPerRock: number;
   seed: number | null; // null — випадковий seed
   camera: CameraBalance;

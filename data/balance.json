@@ -15,6 +15,7 @@
   "itemKillsSpiderling": true,
   "capturesPerTurn": null,
   "showRisk": false,
+  "showHints": true,
   "cellsPerRock": 1,
   "seed": null,
   "camera": {

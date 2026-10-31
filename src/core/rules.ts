@@ -461,6 +461,18 @@ export function unwrapOptions(state: GameState, soldierId: string): string[] {
     .map((c) => c.id);
 }
 
+// «Скасувати дію» (розділ 9 ТЗ): які дії поточного ходу гравця можна відкотити.
+// ТЗ говорить про рухи; ПРИПУЩЕННЯ (перевірити з Колею): так само відкочуємо «Підняти» й «Кинути» —
+// щоб виправити промах пальцем. Список легко змінити тут.
+export const UNDOABLE_ACTIONS: readonly Action['type'][] = ['move', 'pickup', 'throw'];
+
+// Дію не можна скасувати, якщо після неї сталося щось незворотне:
+// хтось потрапив у кокон, загинуло павуча, гра закінчилась. Інакше скасування робило б гру «без ризику».
+export function isUndoable(action: Action, events: readonly GameEvent[]): boolean {
+  if (!UNDOABLE_ACTIONS.includes(action.type)) return false;
+  return !events.some((e) => e.type === 'captured' || e.type === 'spiderlingKilled' || e.type === 'won' || e.type === 'lost');
+}
+
 // Чи лишились у когось AP (якщо ні — пора натискати «Кінець ходу»)
 export function anyApLeft(state: GameState): boolean {
   return state.soldiers.some((s) => s.status === 'free' && s.carriedBy === null && s.ap > 0);

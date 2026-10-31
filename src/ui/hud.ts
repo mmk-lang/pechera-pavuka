@@ -13,11 +13,20 @@ import { SOLDIER_COLORS } from '../render/units';
 export interface HudHandlers {
   onSelectSoldier(soldierId: string): void;
   onEndTurn(): void;
+  onUndo(): void;
+  onMenu(): void;
+}
+
+// Що ще показує HUD, крім стану гри
+export interface HudExtras {
+  allApSpent: boolean;
+  canUndo: boolean;
+  hint: string | null; // текст підказки або null — сховати
 }
 
 export interface Hud {
   // nameOf перетворює те, що солдат тримає, на назву («Деталь 2», «Солдат 3»)
-  update(state: GameState, selectedId: string | null, allApSpent: boolean, nameOf: (held: Held) => string): void;
+  update(state: GameState, selectedId: string | null, extras: HudExtras, nameOf: (held: Held) => string): void;
   message(text: string): void;
   // Додати рядок у список подій. kind — колір: good (зелений), bad (червоний), warn (жовтий), round (роздільник)
   log(text: string, kind?: LogKind): void;
@@ -39,9 +48,25 @@ const hex = (color: number) => `#${color.toString(16).padStart(6, '0')}`;
 export function createHud(root: HTMLElement, state: GameState, problems: LevelProblem[], handlers: HudHandlers): Hud {
   // --- Панель зліва вгорі ---
   const info = el('div', 'hud');
-  info.append(el('h1', 'hud-title', t('title')));
+  const titleRow = el('div', 'hud-title-row');
+  titleRow.append(el('h1', 'hud-title', t('title')));
+  // Кнопка «?» ховає/показує легенду й керування (на телефоні спершу сховані — менше закриває печеру)
+  const helpButton = el('button', 'hud-small-button', '?');
+  const menuButton = el('button', 'hud-small-button', t('menu'));
+  menuButton.addEventListener('click', () => handlers.onMenu());
+  titleRow.append(helpButton, menuButton);
+  info.append(titleRow);
   const roundLine = el('div', 'hud-round');
   info.append(roundLine);
+  // Підказка «що робити зараз»
+  const hintLine = el('div', 'hud-hint');
+  info.append(hintLine);
+  const details = el('div', 'hud-details');
+  info.append(details);
+  const isTouch = window.matchMedia('(pointer: coarse)').matches;
+  const narrow = window.matchMedia('(max-width: 600px)').matches;
+  details.hidden = narrow;
+  helpButton.addEventListener('click', () => (details.hidden = !details.hidden));
   // Легенда небезпеки: як позначені клітинки, які бачить павук
   const legend = el('div', 'hud-legend');
   for (const [cls, key] of [
@@ -56,9 +81,8 @@ export function createHud(root: HTMLElement, state: GameState, problems: LevelPr
   const arrowItem = el('span', 'legend-item');
   arrowItem.append(el('span', 'legend-arrow', '➤'), document.createTextNode(t('legend.spiderling')));
   legend.append(arrowItem);
-  info.append(legend);
-  const isTouch = window.matchMedia('(pointer: coarse)').matches;
-  info.append(el('div', 'hud-controls', t(isTouch ? 'controlsTouch' : 'controlsDesktop')));
+  details.append(legend);
+  details.append(el('div', 'hud-controls', t(isTouch ? 'controlsTouch' : 'controlsDesktop')));
 
   if (problems.length > 0) {
     const box = el('div', 'hud-errors', t('levelErrors'));
@@ -101,6 +125,11 @@ export function createHud(root: HTMLElement, state: GameState, problems: LevelPr
     bar.append(card);
   });
 
+  const undo = el('button', 'undo', t('undo'));
+  undo.title = t('undoTitle');
+  undo.addEventListener('click', () => handlers.onUndo());
+  bar.append(undo);
+
   const endTurn = el('button', 'end-turn', t('endTurn'));
   endTurn.addEventListener('click', () => handlers.onEndTurn());
   bar.append(endTurn);
@@ -111,13 +140,16 @@ export function createHud(root: HTMLElement, state: GameState, problems: LevelPr
 
   // Seed партії дрібно внизу панелі — щоб можна було повторити ту саму гру
   const seedLine = el('div', 'hud-seed', t('seed', { seed: state.seed }));
-  info.append(seedLine);
+  details.append(seedLine);
 
   root.append(info, goal, bar, toast);
 
   return {
-    update(state, selectedId, allApSpent, nameOf) {
+    update(state, selectedId, extras, nameOf) {
       roundLine.textContent = t('round', { n: state.round });
+      hintLine.textContent = extras.hint ? `💡 ${extras.hint}` : '';
+      hintLine.hidden = !extras.hint;
+      undo.disabled = !extras.canUndo;
 
       // Мета: ✔ — виконано, ○ — ще ні
       const turret = turretStatus(state);
@@ -150,7 +182,7 @@ export function createHud(root: HTMLElement, state: GameState, problems: LevelPr
                   : '';
       }
       // Коли всі AP витрачені, кнопка «Кінець ходу» пульсує
-      endTurn.classList.toggle('pulse', allApSpent);
+      endTurn.classList.toggle('pulse', extras.allApSpent);
     },
     message(text) {
       // Якщо попереднє повідомлення ще видно — додаємо новий рядок (останні три)

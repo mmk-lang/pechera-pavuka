@@ -1,35 +1,100 @@
-// Екрани кінця гри: перемога й поразка. Обидва мають кнопку «Грати знову».
+// Екрани поверх гри: стартовий (правила й налаштування) і кінця гри (перемога / поразка).
 
 import { t } from '../i18n';
+import { restartWith, type GameOptions } from './options';
 
-export function showVictory(parent: HTMLElement, rounds: number): void {
-  showEndScreen(parent, 'victory', rounds);
+function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = ''): HTMLElementTagNameMap[K] {
+  const node = document.createElement(tag);
+  node.className = className;
+  node.textContent = text;
+  return node;
 }
 
-export function showDefeat(parent: HTMLElement, rounds: number): void {
-  showEndScreen(parent, 'defeat', rounds);
+function button(text: string, className: string, onClick: () => void): HTMLButtonElement {
+  const b = el('button', className, text);
+  b.addEventListener('click', onClick);
+  return b;
+}
+
+// --- Стартовий екран: коротко правила (щоб зрозуміти гру за 2 хвилини) і налаштування партії ---
+export function showStartScreen(parent: HTMLElement, options: GameOptions, onPlay: (options: GameOptions) => void): void {
+  const overlay = el('div', 'end-screen start-screen');
+  const box = el('div', 'end-box start-box');
+  box.append(el('h2', '', t('title')), el('p', 'start-subtitle', t('start.subtitle')));
+
+  const rules = el('ul', 'start-rules');
+  for (const key of ['goal', 'ap', 'danger', 'spiderlings', 'cocoon', 'defeat']) rules.append(el('li', '', t(`start.rules.${key}`)));
+  box.append(rules);
+
+  // Налаштування
+  const settings = el('div', 'start-settings');
+  const seedLabel = el('label', 'start-seed', t('start.seed'));
+  const seedInput = el('input');
+  seedInput.type = 'number';
+  seedInput.placeholder = t('start.seedRandom');
+  if (options.seed !== null) seedInput.value = String(options.seed);
+  seedLabel.append(seedInput);
+  settings.append(seedLabel);
+
+  const checkbox = (key: string, checked: boolean) => {
+    const label = el('label', 'start-check');
+    const input = el('input');
+    input.type = 'checkbox';
+    input.checked = checked;
+    label.append(input, document.createTextNode(t(`start.${key}`)));
+    settings.append(label);
+    return input;
+  };
+  const next = checkbox('optNext', options.telegraphNextLane);
+  const risk = checkbox('optRisk', options.showRisk);
+  const hints = checkbox('optHints', options.showHints);
+  box.append(settings);
+
+  box.append(
+    button(t('start.play'), '', () => {
+      const seed = Number.parseInt(seedInput.value, 10);
+      overlay.remove();
+      onPlay({
+        seed: Number.isFinite(seed) ? seed : null,
+        telegraphNextLane: next.checked,
+        showRisk: risk.checked,
+        showHints: hints.checked,
+        play: true,
+      });
+    }),
+  );
+  overlay.append(box);
+  parent.append(overlay);
+}
+
+// --- Екрани кінця гри ---
+export function showVictory(parent: HTMLElement, rounds: number, seed: number, options: GameOptions): void {
+  showEndScreen(parent, 'victory', rounds, seed, options);
+}
+
+export function showDefeat(parent: HTMLElement, rounds: number, seed: number, options: GameOptions): void {
+  showEndScreen(parent, 'defeat', rounds, seed, options);
 }
 
 // kind — ключ у uk.json: victory.title / defeat.title тощо
-function showEndScreen(parent: HTMLElement, kind: 'victory' | 'defeat', rounds: number): void {
-  const overlay = document.createElement('div');
-  overlay.className = `end-screen ${kind}`;
-
-  const box = document.createElement('div');
-  box.className = 'end-box';
-  const title = document.createElement('h2');
-  title.textContent = t(`${kind}.title`);
-  const text = document.createElement('p');
-  text.textContent = t(`${kind}.text`);
-  const stats = document.createElement('p');
-  stats.textContent = t('roundsPlayed', { n: rounds });
-
-  const again = document.createElement('button');
-  again.textContent = t('playAgain');
-  // Найпростіший спосіб почати спочатку — перезавантажити сторінку
-  again.addEventListener('click', () => window.location.reload());
-
-  box.append(title, text, stats, again);
+function showEndScreen(parent: HTMLElement, kind: 'victory' | 'defeat', rounds: number, seed: number, options: GameOptions): void {
+  const overlay = el('div', `end-screen ${kind}`);
+  const box = el('div', 'end-box');
+  box.append(
+    el('h2', '', t(`${kind}.title`)),
+    el('p', '', t(`${kind}.text`)),
+    el('p', '', t('roundsPlayed', { n: rounds })),
+    el('p', 'end-seed', t('seed', { seed })),
+  );
+  const buttons = el('div', 'end-buttons');
+  buttons.append(
+    // Нова випадкова печера з тими самими налаштуваннями
+    button(t('playAgain'), '', () => restartWith({ ...options, seed: null, play: true })),
+    // Та сама печера (той самий seed) — спробувати ще раз
+    button(t('sameSeed'), 'secondary', () => restartWith({ ...options, seed, play: true })),
+    button(t('menu'), 'secondary', () => restartWith({ ...options, seed: null, play: false })),
+  );
+  box.append(buttons);
   overlay.append(box);
   parent.append(overlay);
 }
