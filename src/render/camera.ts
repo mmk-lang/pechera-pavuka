@@ -54,7 +54,7 @@ export class CameraRig {
   // Якщо екран вертикальний (телефон), повертаємо камеру на 90°, щоб довгий бік печери йшов уздовж екрана.
   // Викликати після resize(), бо результат залежить від пропорцій екрана.
   fitCave(): void {
-    const portrait = this.camera.aspect < 1;
+    const portrait = this.camera.aspect < 0.85; // помітно вищий, ніж ширший
     this.yaw = portrait ? 90 * DEG : 0;
     // Що видно по горизонталі екрана, а що — по вертикалі
     const across = portrait ? this.cave.depth : this.cave.width;

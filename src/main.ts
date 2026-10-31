@@ -18,6 +18,9 @@ if (problems.length > 0) console.error('Помилки в рівні:', problems
 
 const game = new Game(document.getElementById('app')!, createInitialState(level, balance), problems);
 
+// Лише під час розробки (npm run dev): гра доступна в консолі браузера як window.game — зручно для налагодження
+if (import.meta.env.DEV) Object.assign(window, { game });
+
 // Цикл кадрів: щокадру оновлюємо камеру й анімації та перемальовуємо сцену
 let lastTime = performance.now();
 function frame(now: number): void {

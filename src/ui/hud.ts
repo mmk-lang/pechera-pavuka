@@ -1,10 +1,12 @@
 // Інтерфейс поверх гри:
 //   зліва вгорі — назва, номер раунду, підказка з керування, помилки рівня;
-//   унизу — картки солдатів (з очками дій) і кнопка «Кінець ходу»;
+//   справа вгорі — панель мети: деталі 0/4, патрон, оператор;
+//   унизу — картки солдатів (очки дій, що несе) і кнопка «Кінець ходу»;
 //   посередині внизу — коротке повідомлення («Немає очок дій» тощо).
 
 import type { LevelProblem } from '../core/level';
-import type { GameState } from '../core/state';
+import { turretStatus, type GameState } from '../core/state';
+import type { Held } from '../core/types';
 import { t } from '../i18n';
 import { SOLDIER_COLORS } from '../render/units';
 
@@ -14,7 +16,8 @@ export interface HudHandlers {
 }
 
 export interface Hud {
-  update(state: GameState, selectedId: string | null, allApSpent: boolean): void;
+  // nameOf перетворює те, що солдат тримає, на назву («Деталь 2», «Солдат 3»)
+  update(state: GameState, selectedId: string | null, allApSpent: boolean, nameOf: (held: Held) => string): void;
   message(text: string): void;
 }
 
@@ -43,9 +46,17 @@ export function createHud(root: HTMLElement, state: GameState, problems: LevelPr
     info.append(box);
   }
 
+  // --- Панель мети справа вгорі ---
+  const goal = el('div', 'goal');
+  goal.append(el('div', 'goal-title', t('goal.title')));
+  const goalParts = el('div', 'goal-line');
+  const goalCartridge = el('div', 'goal-line');
+  const goalOperator = el('div', 'goal-line');
+  goal.append(goalParts, goalCartridge, goalOperator);
+
   // --- Нижня панель: картки солдатів і кнопка ---
   const bar = el('div', 'bottom-bar');
-  const cards = new Map<string, { card: HTMLButtonElement; dots: HTMLSpanElement[] }>();
+  const cards = new Map<string, { card: HTMLButtonElement; dots: HTMLSpanElement[]; status: HTMLSpanElement }>();
   state.soldiers.forEach((soldier, i) => {
     const card = el('button', 'soldier-card');
     card.style.setProperty('--soldier-color', hex(SOLDIER_COLORS[i % SOLDIER_COLORS.length]));
@@ -58,8 +69,10 @@ export function createHud(root: HTMLElement, state: GameState, problems: LevelPr
       dotsBox.append(dot);
     }
     card.append(dotsBox);
+    const status = el('span', 'soldier-status');
+    card.append(status);
     card.addEventListener('click', () => handlers.onSelectSoldier(soldier.id));
-    cards.set(soldier.id, { card, dots });
+    cards.set(soldier.id, { card, dots, status });
     bar.append(card);
   });
 
@@ -71,16 +84,33 @@ export function createHud(root: HTMLElement, state: GameState, problems: LevelPr
   const toast = el('div', 'toast');
   let toastTimer = 0;
 
-  root.append(info, bar, toast);
+  root.append(info, goal, bar, toast);
 
   return {
-    update(state, selectedId, allApSpent) {
+    update(state, selectedId, allApSpent, nameOf) {
       roundLine.textContent = t('round', { n: state.round });
+
+      // Мета: ✔ — виконано, ○ — ще ні
+      const turret = turretStatus(state);
+      const mark = (done: boolean) => (done ? '✔ ' : '○ ');
+      goalParts.textContent = mark(turret.repaired) + t('goal.parts', { n: turret.partsInstalled, total: turret.partsNeeded });
+      goalCartridge.textContent = mark(turret.loaded) + t('goal.cartridge');
+      goalOperator.textContent = mark(turret.operatorReady) + t('goal.operator');
+      goalParts.classList.toggle('done', turret.repaired);
+      goalCartridge.classList.toggle('done', turret.loaded);
+      goalOperator.classList.toggle('done', turret.operatorReady);
+
       for (const soldier of state.soldiers) {
-        const { card, dots } = cards.get(soldier.id)!;
+        const { card, dots, status } = cards.get(soldier.id)!;
         card.classList.toggle('selected', soldier.id === selectedId);
-        card.disabled = soldier.status !== 'free';
+        card.disabled = soldier.status !== 'free' || soldier.carriedBy !== null;
         dots.forEach((dot, i) => dot.classList.toggle('spent', i >= soldier.ap));
+        // Під очками дій — що солдат несе, або що несуть його самого
+        status.textContent = soldier.carriedBy
+          ? t('card.carried')
+          : soldier.held
+            ? t('card.holding', { name: nameOf(soldier.held) })
+            : '';
       }
       // Коли всі AP витрачені, кнопка «Кінець ходу» пульсує
       endTurn.classList.toggle('pulse', allApSpent);

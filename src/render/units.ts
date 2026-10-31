@@ -17,7 +17,10 @@ interface SoldierView {
   apDots: THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>[];
   ring: THREE.Mesh;
   target: THREE.Vector3; // куди фігурка має прийти
+  carriedBy: string | null; // якщо солдата несуть — він «лежить» на плечах у носія
 }
+
+const CARRY_HEIGHT = 1.05; // на якій висоті лежить солдат, якого несуть
 
 export class UnitsView {
   readonly group = new THREE.Group();
@@ -46,11 +49,14 @@ export class UnitsView {
   sync(state: GameState, selectedId: string | null, instant = false): void {
     for (const soldier of state.soldiers) {
       const view = this.views.get(soldier.id)!;
-      view.target.copy(positionInCell(state, soldier));
+      view.carriedBy = soldier.carriedBy;
+      // Солдат, якого несуть, не займає місця в клітинці — його позицію рахує update()
+      if (!soldier.carriedBy) view.target.copy(positionInCell(state, soldier));
       if (instant) view.group.position.copy(view.target);
 
       // Точки AP: світяться ті, що ще лишились
       view.apDots.forEach((dot, i) => dot.material.color.setHex(i < soldier.ap ? AP_ON : AP_OFF));
+      view.apDots.forEach((dot) => (dot.visible = !soldier.carriedBy)); // кого несуть, той не діє
       view.ring.visible = soldier.id === selectedId;
       view.group.visible = soldier.status !== 'dead';
     }
@@ -61,15 +67,27 @@ export class UnitsView {
     // Щокадру проходимо частку решти шляху: швидко на початку, м'яко в кінці
     const t = Math.min(1, (dt / MOVE_TIME) * 4);
     for (const view of this.views.values()) {
+      if (view.carriedBy) {
+        // Лежить на плечах у носія й рухається разом із ним
+        view.target.copy(this.views.get(view.carriedBy)!.group.position).setY(CARRY_HEIGHT);
+      }
       view.group.position.lerp(view.target, t);
+      // Кого несуть — повертаємо горизонтально
+      const lying = view.carriedBy ? Math.PI / 2 : 0;
+      view.group.rotation.z += (lying - view.group.rotation.z) * t;
     }
+  }
+
+  // Де зараз фігурка солдата на екрані (щоб предмет у руках і панель дій були поруч)
+  displayPosition(soldierId: string): THREE.Vector3 {
+    return this.views.get(soldierId)!.group.position;
   }
 }
 
 // Де саме в клітинці стоїть солдат: якщо їх двоє — ставимо поруч, а не один в одному
 function positionInCell(state: GameState, soldier: Soldier): THREE.Vector3 {
   const cell = state.world.cells[soldier.cellId];
-  const together = state.soldiers.filter((s) => s.cellId === soldier.cellId && s.status !== 'dead');
+  const together = state.soldiers.filter((s) => s.cellId === soldier.cellId && s.status !== 'dead' && !s.carriedBy);
   const index = together.indexOf(soldier);
   const offset = together.length > 1 ? (index - (together.length - 1) / 2) * 0.5 : 0;
   return new THREE.Vector3(cell.x + offset, 0, cell.z);
@@ -118,5 +136,5 @@ function createSoldier(id: string, color: number, apCount: number): SoldierView 
   ring.visible = false;
   group.add(ring);
 
-  return { group, apDots, ring, target: new THREE.Vector3() };
+  return { group, apDots, ring, target: new THREE.Vector3(), carriedBy: null };
 }

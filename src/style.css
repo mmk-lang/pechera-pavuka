@@ -25,7 +25,7 @@ body {
   position: absolute;
   top: 12px;
   left: 12px;
-  max-width: calc(100% - 24px);
+  max-width: min(55%, 520px); /* праворуч — панель мети */
   padding: 10px 14px;
   border-radius: 10px;
   background: rgba(15, 12, 10, 0.72);
@@ -168,5 +168,136 @@ body {
   }
   .toast {
     bottom: 130px;
+  }
+}
+
+/* Що солдат несе — дрібним текстом на картці */
+.soldier-status {
+  font-size: 11px;
+  opacity: 0.8;
+  min-height: 1em;
+}
+
+/* Панель мети справа вгорі */
+.goal {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(15, 12, 10, 0.72);
+  font-size: 14px;
+  line-height: 1.5;
+  pointer-events: none;
+}
+
+.goal-title {
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.goal-line {
+  opacity: 0.75;
+}
+
+.goal-line.done {
+  opacity: 1;
+  color: #8dff8a;
+}
+
+/* Контекстна панель над вибраним солдатом */
+.action-panel {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.action-panel.visible {
+  display: flex;
+}
+
+.action-panel button {
+  font: inherit;
+  font-size: 14px;
+  color: #1a140f;
+  background: #ffe14a;
+  border: none;
+  border-radius: 8px;
+  padding: 7px 12px;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  touch-action: manipulation;
+}
+
+.action-panel button.fire {
+  background: #ff5a36;
+  color: #fff;
+  font-weight: 700;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.action-panel button.cancel {
+  background: #ddd;
+}
+
+/* Екран кінця гри */
+.end-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  animation: fade-in 0.4s ease-out;
+}
+
+.end-box {
+  max-width: calc(100% - 48px);
+  padding: 24px 32px;
+  border-radius: 14px;
+  background: #1d1714;
+  border: 2px solid #ffe14a;
+  text-align: center;
+}
+
+.end-box h2 {
+  margin: 0 0 8px;
+  font-size: 32px;
+  color: #ffe14a;
+}
+
+.end-box button {
+  margin-top: 12px;
+  font: inherit;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a140f;
+  background: #ffe14a;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 24px;
+  cursor: pointer;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 600px) {
+  .goal {
+    top: auto;
+    bottom: 150px;
+    right: 8px;
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+  .action-panel button {
+    font-size: 13px;
+    padding: 6px 10px;
   }
 }

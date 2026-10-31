@@ -1,4 +1,5 @@
-// Тимчасова модель павука з куль і циліндрів. Поки що він просто стоїть у гнізді.
+// Тимчасова модель павука з куль і циліндрів. Поки що він стоїть у гнізді, а після пострілу турелі —
+// перевертається лапами догори.
 
 import * as THREE from 'three';
 
@@ -36,4 +37,26 @@ export function createSpider(x: number, z: number): THREE.Group {
   spider.traverse((obj) => (obj.castShadow = true));
   spider.position.set(x, 0, z);
   return spider;
+}
+
+// Павук на сцені: модель + анімація загибелі
+export class SpiderView {
+  readonly group: THREE.Group;
+  private dead = false;
+
+  constructor(x: number, z: number) {
+    this.group = createSpider(x, z);
+  }
+
+  die(): void {
+    this.dead = true;
+  }
+
+  update(dt: number): void {
+    if (!this.dead) return;
+    // Плавно перевертаємо на спину й трохи опускаємо
+    const t = Math.min(1, dt * 3);
+    this.group.rotation.z += (Math.PI - this.group.rotation.z) * t;
+    this.group.position.y += (2.2 - this.group.position.y) * t;
+  }
 }

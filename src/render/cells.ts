@@ -8,6 +8,7 @@ const COLOR_CELL = 0x3fa7a0; // звичайна клітинка — бірюз
 const COLOR_START = 0x5fd35f; // старт — зелений
 const COLOR_TURRET = 0x4f7cff; // турель — синя
 const COLOR_REACHABLE = 0xffd24a; // сюди можна піти — жовта
+const COLOR_THROW = 0xff7a2a; // сюди можна кинути — помаранчева
 
 export class CellsView {
   readonly group = new THREE.Group();
@@ -40,12 +41,14 @@ export class CellsView {
     return [...this.discs.values()];
   }
 
-  // Підсвічуємо клітинки, куди можна піти; решта — звичайного кольору
-  setReachable(cellIds: string[]): void {
-    const reachable = new Set(cellIds);
+  // Підсвічуємо клітинки: 'move' — куди можна піти (жовті), 'throw' — куди можна кинути (помаранчеві).
+  // Решта — звичайного кольору.
+  setHighlight(cellIds: string[], kind: 'move' | 'throw'): void {
+    const highlighted = new Set(cellIds);
+    const color = kind === 'move' ? COLOR_REACHABLE : COLOR_THROW;
     for (const [id, disc] of this.discs) {
-      const on = reachable.has(id);
-      disc.material.color.setHex(on ? COLOR_REACHABLE : this.baseColors.get(id)!);
+      const on = highlighted.has(id);
+      disc.material.color.setHex(on ? color : this.baseColors.get(id)!);
       disc.material.opacity = on ? 0.85 : 0.5;
     }
   }

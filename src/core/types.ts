@@ -76,7 +76,20 @@ export interface Soldier {
   carriedBy: string | null; // id солдата, який його несе
 }
 
-// Дії гравця. Інші дії (підняти, кинути, розмотати, вогонь) додамо на наступних етапах.
+// Предмет у грі: деталь турелі або патрон.
+// Лежить у клітинці (cellId), або його несуть (carriedBy), або він уже встановлений у турель (installed).
+export interface Item {
+  id: string;
+  kind: ItemKind;
+  cellId: string | null; // null, поки предмет у когось у руках
+  carriedBy: string | null; // id солдата, який несе
+  installed: boolean;
+}
+
+// Дії гравця. «Розмотати» додамо на етапі 4.
 export type Action =
   | { type: 'move'; soldierId: string; toCell: string }
+  | { type: 'pickup'; soldierId: string; target: Held }
+  | { type: 'throw'; soldierId: string; toCell: string }
+  | { type: 'fire'; soldierId: string }
   | { type: 'endTurn' };
