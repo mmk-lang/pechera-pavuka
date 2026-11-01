@@ -1,6 +1,7 @@
 // Екрани поверх гри: стартовий (правила й налаштування) і кінця гри (перемога / поразка).
 
 import { t } from '../i18n';
+import { LEVELS, levelName, nextLevelId } from '../levels';
 import { restartWith, type GameOptions } from './options';
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = ''): HTMLElementTagNameMap[K] {
@@ -28,18 +29,16 @@ export function showStartScreen(parent: HTMLElement, options: GameOptions, onPla
 
   // Налаштування
   const settings = el('div', 'start-settings');
-  // Яка печера: рівень Колі чи згенерована з номера печери
+  // Яка печера: один із рівнів чи згенерована з номера печери
   const caveLabel = el('label', 'start-seed', t('start.cave'));
   const caveSelect = el('select');
-  for (const [value, key] of [
-    ['level', 'start.caveLevel'],
-    ['random', 'start.caveRandom'],
-  ]) {
-    const option = el('option', '', t(key));
+  const caves = [...LEVELS.map((level) => [level.id, levelName(level.id)]), ['random', t('start.caveRandom')]];
+  for (const [value, text] of caves) {
+    const option = el('option', '', text);
     option.value = value;
     caveSelect.append(option);
   }
-  caveSelect.value = options.randomCave ? 'random' : 'level';
+  caveSelect.value = caves.some(([value]) => value === options.cave) ? options.cave : LEVELS[0].id;
   caveLabel.append(caveSelect);
   settings.append(caveLabel);
 
@@ -71,7 +70,7 @@ export function showStartScreen(parent: HTMLElement, options: GameOptions, onPla
       overlay.remove();
       onPlay({
         seed: Number.isFinite(seed) ? seed : null,
-        randomCave: caveSelect.value === 'random',
+        cave: caveSelect.value,
         telegraphNextLane: next.checked,
         showRisk: risk.checked,
         showHints: hints.checked,
@@ -103,9 +102,12 @@ function showEndScreen(parent: HTMLElement, kind: 'victory' | 'defeat', rounds: 
     el('p', 'end-seed', t('seed', { seed })),
   );
   const buttons = el('div', 'end-buttons');
+  // Після перемоги на рівні — одразу наступний рівень
+  const next = kind === 'victory' ? nextLevelId(options.cave) : null;
+  if (next) buttons.append(button(t('nextLevel', { name: levelName(next) }), '', () => restartWith({ ...options, cave: next, seed: null, play: true })));
   buttons.append(
     // Нова випадкова печера з тими самими налаштуваннями
-    button(t('playAgain'), '', () => restartWith({ ...options, seed: null, play: true })),
+    button(t('playAgain'), next ? 'secondary' : '', () => restartWith({ ...options, seed: null, play: true })),
     // Та сама печера (той самий seed) — спробувати ще раз
     button(t('sameSeed'), 'secondary', () => restartWith({ ...options, seed, play: true })),
     button(t('menu'), 'secondary', () => restartWith({ ...options, seed: null, play: false })),

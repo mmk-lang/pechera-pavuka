@@ -5,6 +5,7 @@
 //   посередині внизу — коротке повідомлення («Немає очок дій» тощо).
 
 import type { LevelProblem } from '../core/level';
+import { levelName } from '../levels';
 import { turretStatus, type GameState } from '../core/state';
 import type { Held } from '../core/types';
 import { t } from '../i18n';
@@ -150,7 +151,7 @@ export function createHud(
   let toastTimer = 0;
 
   // Seed партії дрібно внизу панелі — щоб можна було повторити ту саму гру
-  const seedLine = el('div', 'hud-seed', t('seed', { seed: state.seed }));
+  const seedLine = el('div', 'hud-seed', `${levelName(state.world.level.id)} · ${t('seed', { seed: state.seed })}`);
   details.append(seedLine);
 
   root.append(info, goal, bar, toast);

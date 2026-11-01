@@ -1,24 +1,18 @@
 // Точка входу: завантажуємо рівень і баланс, показуємо стартовий екран, створюємо гру, запускаємо цикл кадрів.
 
 import balanceJson from '../data/balance.json';
-import levelJson from '../data/level01.json';
 import type { Balance } from './core/balance';
 import { generateLevel } from './core/generator';
 import { validateLevel } from './core/level';
 import { randomSeed } from './core/rng';
 import { createInitialState } from './core/state';
-import type { LevelData } from './core/types';
 import { Game } from './game';
+import { findLevel, LEVELS } from './levels';
 import { applyOptions, optionsToSearch, readOptions, type GameOptions } from './ui/options';
 import { showStartScreen } from './ui/screens';
 import './style.css';
 
-const level = levelJson as LevelData;
 const balance = balanceJson as Balance;
-
-// Перевіряємо рівень. Помилки пишемо в консоль і показуємо на екрані, але гру не зупиняємо.
-const problems = validateLevel(level);
-if (problems.length > 0) console.error('Помилки в рівні:', problems);
 
 const root = document.getElementById('app')!;
 
@@ -29,9 +23,13 @@ else showStartScreen(root, options, startGame);
 
 function startGame(chosen: GameOptions): void {
   const seed = chosen.seed ?? randomSeed();
-  // Випадкова печера будується з того самого seed — тож номер печери повторює і печеру, і партію
-  const caveLevel = chosen.randomCave ? generateLevel(seed, level, balance.generator, balance.neighborsCount) : level;
-  const caveProblems = chosen.randomCave ? validateLevel(caveLevel) : problems;
+  // Випадкова печера будується з того самого seed — тож номер печери повторює і печеру, і партію.
+  // Розміри печери, павука й лінії генератор бере з першого рівня.
+  const caveLevel =
+    chosen.cave === 'random' ? generateLevel(seed, LEVELS[0], balance.generator, balance.neighborsCount) : findLevel(chosen.cave);
+  // Перевіряємо рівень. Помилки пишемо в консоль і показуємо на екрані, але гру не зупиняємо.
+  const caveProblems = validateLevel(caveLevel);
+  if (caveProblems.length > 0) console.error('Помилки в рівні:', caveProblems);
   const state = createInitialState(caveLevel, applyOptions(balance, chosen), seed);
   const game = new Game(root, state, caveProblems, chosen);
   // Записуємо налаштування й seed в адресу: оновлення сторінки почне цю саму печеру заново

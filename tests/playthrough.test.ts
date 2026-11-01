@@ -3,6 +3,7 @@ import balanceJson from '../data/balance.json';
 import levelJson from '../data/level01.json';
 import type { Balance } from '../src/core/balance';
 import { generateLevel } from '../src/core/generator';
+import { LEVELS } from '../src/levels';
 import { apply, validate } from '../src/core/rules';
 import { cellsUnderLane, createInitialState, freeSoldiersInCell, getSoldier, type GameState } from '../src/core/state';
 import type { Action, LevelData } from '../src/core/types';
@@ -42,6 +43,14 @@ describe('рівень level01 можна пройти, обходячи пог�
   // Кілька різних seed — щоб перевірити, що рівень проходиться за різних поворотів павука
   for (const seed of [1, 7, 42, 2026]) {
     it(`seed ${seed}: один солдат приносить усі предмети в турель і стріляє`, () => playthrough(level, seed));
+  }
+});
+
+describe('усі рівні можна пройти', () => {
+  for (const lvl of LEVELS.slice(1)) {
+    for (const seed of [1, 7, 42, 2026]) {
+      it(`${lvl.id}, seed ${seed}`, () => playthrough(lvl, seed));
+    }
   }
 });
 

@@ -1,0 +1,428 @@
+{
+  "id": "level03",
+  "cave": {
+    "width": 50,
+    "depth": 28,
+    "wallHeight": 1.5
+  },
+  "spider": {
+    "x": 0,
+    "z": -11.5
+  },
+  "lanes": [
+    {
+      "id": 0,
+      "angleDeg": -60,
+      "halfWidthDeg": 7
+    },
+    {
+      "id": 1,
+      "angleDeg": -30,
+      "halfWidthDeg": 7
+    },
+    {
+      "id": 2,
+      "angleDeg": 0,
+      "halfWidthDeg": 7
+    },
+    {
+      "id": 3,
+      "angleDeg": 30,
+      "halfWidthDeg": 7
+    },
+    {
+      "id": 4,
+      "angleDeg": 60,
+      "halfWidthDeg": 7
+    }
+  ],
+  "startCell": "cell_17",
+  "turretCell": "cell_22",
+  "items": [
+    {
+      "id": "part_1",
+      "kind": "part",
+      "cellId": "cell_03"
+    },
+    {
+      "id": "part_2",
+      "kind": "part",
+      "cellId": "cell_02"
+    },
+    {
+      "id": "part_3",
+      "kind": "part",
+      "cellId": "cell_04"
+    },
+    {
+      "id": "part_4",
+      "kind": "part",
+      "cellId": "cell_11"
+    },
+    {
+      "id": "cartridge",
+      "kind": "cartridge",
+      "cellId": "cell_24"
+    }
+  ],
+  "rocks": [
+    {
+      "id": "rock_01",
+      "x": 21.8,
+      "z": -5.09,
+      "radius": 1.46,
+      "height": 2.08
+    },
+    {
+      "id": "rock_02",
+      "x": -11.56,
+      "z": -9.23,
+      "radius": 0.86,
+      "height": 1.85
+    },
+    {
+      "id": "rock_03",
+      "x": -16.43,
+      "z": -1.86,
+      "radius": 0.97,
+      "height": 2.43
+    },
+    {
+      "id": "rock_04",
+      "x": -16.36,
+      "z": 5.26,
+      "radius": 1.5,
+      "height": 1.35
+    },
+    {
+      "id": "rock_05",
+      "x": -12.52,
+      "z": 2.95,
+      "radius": 0.94,
+      "height": 1.31
+    },
+    {
+      "id": "rock_06",
+      "x": 10.59,
+      "z": -0.18,
+      "radius": 1.5,
+      "height": 1.45
+    },
+    {
+      "id": "rock_07",
+      "x": -21.37,
+      "z": -7.51,
+      "radius": 1.09,
+      "height": 1.45
+    },
+    {
+      "id": "rock_08",
+      "x": 10.04,
+      "z": -11.34,
+      "radius": 1.28,
+      "height": 1.38
+    },
+    {
+      "id": "rock_09",
+      "x": 16.52,
+      "z": -7.31,
+      "radius": 0.92,
+      "height": 1.43
+    },
+    {
+      "id": "rock_10",
+      "x": -10.44,
+      "z": 11.04,
+      "radius": 1.1,
+      "height": 2.31
+    },
+    {
+      "id": "rock_11",
+      "x": -0.85,
+      "z": -2.15,
+      "radius": 1.02,
+      "height": 1.81
+    },
+    {
+      "id": "rock_12",
+      "x": -16.31,
+      "z": 11.6,
+      "radius": 1.15,
+      "height": 1.87
+    },
+    {
+      "id": "rock_13",
+      "x": 15.97,
+      "z": 0.75,
+      "radius": 1.44,
+      "height": 1.49
+    },
+    {
+      "id": "rock_14",
+      "x": 13.41,
+      "z": 8.67,
+      "radius": 1.38,
+      "height": 1.85
+    },
+    {
+      "id": "rock_15",
+      "x": -20.95,
+      "z": 10.56,
+      "radius": 1.15,
+      "height": 1.85
+    },
+    {
+      "id": "rock_16",
+      "x": 1.64,
+      "z": 4.76,
+      "radius": 1.4,
+      "height": 2.22
+    },
+    {
+      "id": "rock_17",
+      "x": 21.46,
+      "z": 7.06,
+      "radius": 1.22,
+      "height": 2.17
+    },
+    {
+      "id": "rock_18",
+      "x": 5.94,
+      "z": 7.93,
+      "radius": 0.94,
+      "height": 1.38
+    },
+    {
+      "id": "rock_19",
+      "x": 14.05,
+      "z": -4.33,
+      "radius": 0.96,
+      "height": 1.31
+    },
+    {
+      "id": "rock_20",
+      "x": 6.98,
+      "z": 4.22,
+      "radius": 0.92,
+      "height": 1.84
+    },
+    {
+      "id": "rock_21",
+      "x": -8.28,
+      "z": -3.25,
+      "radius": 1.05,
+      "height": 2.03
+    },
+    {
+      "id": "rock_22",
+      "x": -2.31,
+      "z": 7.52,
+      "radius": 0.99,
+      "height": 1.25
+    },
+    {
+      "id": "rock_23",
+      "x": -6.86,
+      "z": 3.63,
+      "radius": 1.29,
+      "height": 1.59
+    },
+    {
+      "id": "rock_24",
+      "x": -7.21,
+      "z": -7.98,
+      "radius": 1.03,
+      "height": 1.92
+    }
+  ],
+  "cells": [
+    {
+      "id": "cell_01",
+      "x": 24.11,
+      "z": -4.62,
+      "rockId": "rock_01",
+      "exposedTo": []
+    },
+    {
+      "id": "cell_02",
+      "x": -13.19,
+      "z": -8.57,
+      "rockId": "rock_02",
+      "exposedTo": []
+    },
+    {
+      "id": "cell_03",
+      "x": -17.82,
+      "z": -0.61,
+      "rockId": "rock_03",
+      "exposedTo": []
+    },
+    {
+      "id": "cell_04",
+      "x": -16.27,
+      "z": 7.66,
+      "rockId": "rock_04",
+      "exposedTo": []
+    },
+    {
+      "id": "cell_05",
+      "x": -10.7,
+      "z": 2.65,
+      "rockId": "rock_05",
+      "exposedTo": []
+    },
+    {
+      "id": "cell_06",
+      "x": 12.51,
+      "z": 1.26,
+      "rockId": "rock_06",
+      "exposedTo": []
+    },
+    {
+      "id": "cell_07",
+      "x": -21.85,
+      "z": -9.44,
+      "rockId": "rock_07",
+      "exposedTo": []
+    },
+    {
+      "id": "cell_08",
+      "x": 7.93,
+      "z": -11.88,
+      "rockId": "rock_08",
+      "exposedTo": []
+    },
+    {
+      "id": "cell_09",
+      "x": 18.27,
+      "z": -6.82,
+      "rockId": "rock_09",
+      "exposedTo": []
+    },
+    {
+      "id": "cell_10",
+      "x": -11.99,
+      "z": 12.3,
+      "rockId": "rock_10",
+      "exposedTo": []
+    },
+    {
+      "id": "cell_11",
+      "x": -0.58,
+      "z": -4.05,
+      "rockId": "rock_11",
+      "exposedTo": [
+        2
+      ]
+    },
+    {
+      "id": "cell_12",
+      "x": -15.44,
+      "z": 9.74,
+      "rockId": "rock_12",
+      "exposedTo": [
+        1
+      ]
+    },
+    {
+      "id": "cell_13",
+      "x": 18.13,
+      "z": -0.14,
+      "rockId": "rock_13",
+      "exposedTo": [
+        4
+      ]
+    },
+    {
+      "id": "cell_14",
+      "x": 13.18,
+      "z": 6.4,
+      "rockId": "rock_14",
+      "exposedTo": [
+        3
+      ]
+    },
+    {
+      "id": "cell_15",
+      "x": -20.08,
+      "z": 8.71,
+      "rockId": "rock_15",
+      "exposedTo": []
+    },
+    {
+      "id": "cell_16",
+      "x": 0.53,
+      "z": 2.74,
+      "rockId": "rock_16",
+      "exposedTo": [
+        2
+      ]
+    },
+    {
+      "id": "cell_17",
+      "x": 23.49,
+      "z": 7.68,
+      "rockId": "rock_17",
+      "exposedTo": []
+    },
+    {
+      "id": "cell_18",
+      "x": 4.67,
+      "z": 9.26,
+      "rockId": "rock_18",
+      "exposedTo": []
+    },
+    {
+      "id": "cell_19",
+      "x": 12.35,
+      "z": -5.08,
+      "rockId": "rock_19",
+      "exposedTo": [
+        4
+      ]
+    },
+    {
+      "id": "cell_20",
+      "x": 8.35,
+      "z": 3.02,
+      "rockId": "rock_20",
+      "exposedTo": [
+        3
+      ]
+    },
+    {
+      "id": "cell_21",
+      "x": -10.06,
+      "z": -4.04,
+      "rockId": "rock_21",
+      "exposedTo": [
+        0
+      ]
+    },
+    {
+      "id": "cell_22",
+      "x": -3.8,
+      "z": 6.35,
+      "rockId": "rock_22",
+      "exposedTo": []
+    },
+    {
+      "id": "cell_23",
+      "x": -9.03,
+      "z": 3.31,
+      "rockId": "rock_23",
+      "exposedTo": [
+        1
+      ]
+    },
+    {
+      "id": "cell_24",
+      "x": -5.3,
+      "z": -7.74,
+      "rockId": "rock_24",
+      "exposedTo": [
+        0
+      ]
+    }
+  ]
+}

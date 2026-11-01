@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import levelJson from '../data/level01.json';
 import { validateLevel } from '../src/core/level';
 import type { LevelData } from '../src/core/types';
+import { LEVELS, nextLevelId } from '../src/levels';
+import uk from '../src/i18n/uk.json';
 
 const level = levelJson as LevelData;
 
@@ -36,5 +38,28 @@ describe('validateLevel', () => {
     const broken: LevelData = structuredClone(level);
     broken.turretCell = 'cell_999';
     expect(validateLevel(broken)).toContainEqual({ code: 'unknownCell', id: 'turretCell' });
+  });
+});
+
+describe('усі рівні', () => {
+  it('шість рівнів із різними id, кожен має назву', () => {
+    expect(LEVELS.length).toBe(6);
+    expect(new Set(LEVELS.map((l) => l.id)).size).toBe(6);
+    for (const l of LEVELS) expect((uk.levels as Record<string, string>)[l.id]).toBeTruthy();
+  });
+
+  for (const l of LEVELS) {
+    it(`${l.id}: без помилок, 5 ліній, кожну лінію видно хоч з однієї клітинки`, () => {
+      expect(validateLevel(l)).toEqual([]);
+      expect(l.lanes.length).toBe(5);
+      expect(l.items.length).toBe(5);
+      for (const lane of l.lanes) expect(l.cells.some((c) => c.exposedTo.includes(lane.id))).toBe(true);
+    });
+  }
+
+  it('після рівня йде наступний, після останнього — нічого', () => {
+    expect(nextLevelId('level01')).toBe('level02');
+    expect(nextLevelId('level06')).toBeNull();
+    expect(nextLevelId('cave_5')).toBeNull();
   });
 });
