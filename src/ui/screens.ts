@@ -28,6 +28,21 @@ export function showStartScreen(parent: HTMLElement, options: GameOptions, onPla
 
   // Налаштування
   const settings = el('div', 'start-settings');
+  // Яка печера: рівень Колі чи згенерована з номера печери
+  const caveLabel = el('label', 'start-seed', t('start.cave'));
+  const caveSelect = el('select');
+  for (const [value, key] of [
+    ['level', 'start.caveLevel'],
+    ['random', 'start.caveRandom'],
+  ]) {
+    const option = el('option', '', t(key));
+    option.value = value;
+    caveSelect.append(option);
+  }
+  caveSelect.value = options.randomCave ? 'random' : 'level';
+  caveLabel.append(caveSelect);
+  settings.append(caveLabel);
+
   const seedLabel = el('label', 'start-seed', t('start.seed'));
   const seedInput = el('input');
   seedInput.type = 'number';
@@ -56,6 +71,7 @@ export function showStartScreen(parent: HTMLElement, options: GameOptions, onPla
       overlay.remove();
       onPlay({
         seed: Number.isFinite(seed) ? seed : null,
+        randomCave: caveSelect.value === 'random',
         telegraphNextLane: next.checked,
         showRisk: risk.checked,
         showHints: hints.checked,

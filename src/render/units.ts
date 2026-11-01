@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import type { GameState } from '../core/state';
 import type { Soldier } from '../core/types';
+import { Hop } from './hop';
 
 // Колір кожного солдата (такі самі кольори в картках унизу екрана — див. style.css)
 export const SOLDIER_COLORS = [0xf28c28, 0xa66bff, 0xff6fa8, 0xf0e6c8];
@@ -16,7 +17,9 @@ interface SoldierView {
   group: THREE.Group;
   apDots: THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>[];
   ring: THREE.Mesh;
+  base: THREE.Vector3; // де фігурка зараз «на землі» (без підскоку кидка)
   target: THREE.Vector3; // куди фігурка має прийти
+  hop: Hop; // політ дугою, коли солдата кинули
   carriedBy: string | null; // якщо солдата несуть — він «лежить» на плечах у носія
 }
 
@@ -52,7 +55,10 @@ export class UnitsView {
       view.carriedBy = soldier.carriedBy;
       // Солдат, якого несуть, не займає місця в клітинці — його позицію рахує update()
       if (!soldier.carriedBy) view.target.copy(positionInCell(state, soldier));
-      if (instant) view.group.position.copy(view.target);
+      if (instant) {
+        view.base.copy(view.target);
+        view.group.position.copy(view.target);
+      }
 
       // Точки AP: світяться ті, що ще лишились
       view.apDots.forEach((dot, i) => dot.material.color.setHex(i < soldier.ap ? AP_ON : AP_OFF));
@@ -71,7 +77,9 @@ export class UnitsView {
         // Лежить на плечах у носія й рухається разом із ним
         view.target.copy(this.views.get(view.carriedBy)!.group.position).setY(CARRY_HEIGHT);
       }
-      view.group.position.lerp(view.target, t);
+      view.base.lerp(view.target, t);
+      view.group.position.copy(view.base);
+      view.group.position.y += view.hop.offset(dt);
       // Кого несуть — повертаємо горизонтально
       const lying = view.carriedBy ? Math.PI / 2 : 0;
       view.group.rotation.z += (lying - view.group.rotation.z) * t;
@@ -79,6 +87,11 @@ export class UnitsView {
   }
 
   // Де зараз фігурка солдата на екрані (щоб предмет у руках і панель дій були поруч)
+  // Солдата кинули — він летить дугою
+  throwSoldier(soldierId: string): void {
+    this.views.get(soldierId)?.hop.start();
+  }
+
   displayPosition(soldierId: string): THREE.Vector3 {
     return this.views.get(soldierId)!.group.position;
   }
@@ -136,5 +149,5 @@ function createSoldier(id: string, color: number, apCount: number): SoldierView 
   ring.visible = false;
   group.add(ring);
 
-  return { group, apDots, ring, target: new THREE.Vector3(), carriedBy: null };
+  return { group, apDots, ring, base: new THREE.Vector3(), target: new THREE.Vector3(), hop: new Hop(), carriedBy: null };
 }

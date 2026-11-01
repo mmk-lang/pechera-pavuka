@@ -133,6 +133,7 @@ describe('налаштування партії в адресі сторінки
   it('без параметрів — значення з balance.json і стартовий екран', () => {
     expect(readOptions('', balance)).toEqual({
       seed: balance.seed,
+      randomCave: false,
       telegraphNextLane: balance.telegraphNextLane,
       showRisk: balance.showRisk,
       showHints: balance.showHints,
@@ -141,7 +142,7 @@ describe('налаштування партії в адресі сторінки
   });
 
   it('налаштування переживають перезапуск (у адресу й назад)', () => {
-    const options = { seed: 1234, telegraphNextLane: false, showRisk: true, showHints: false, play: true };
+    const options = { seed: 1234, randomCave: true, telegraphNextLane: false, showRisk: true, showHints: false, play: true };
     expect(readOptions(optionsToSearch(options), balance)).toEqual(options);
   });
 });

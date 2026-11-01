@@ -4,6 +4,7 @@
 
 import * as THREE from 'three';
 import type { GameState } from '../core/state';
+import { Hop } from './hop';
 import type { UnitsView } from './units';
 
 const HELD_HEIGHT = 1.75; // над головою, вище точок AP
@@ -11,7 +12,9 @@ const MOVE_TIME = 0.3;
 
 interface ItemView {
   mesh: THREE.Object3D;
+  base: THREE.Vector3; // де предмет «на землі» зараз (без підскоку)
   target: THREE.Vector3;
+  hop: Hop;
   carriedBy: string | null;
 }
 
@@ -23,7 +26,7 @@ export class ItemsView {
   constructor(state: GameState) {
     for (const item of state.items) {
       const mesh = item.kind === 'part' ? createPart() : createCartridge();
-      this.views.set(item.id, { mesh, target: new THREE.Vector3(), carriedBy: null });
+      this.views.set(item.id, { mesh, base: new THREE.Vector3(), target: new THREE.Vector3(), hop: new Hop(), carriedBy: null });
       this.group.add(mesh);
     }
     this.sync(state, true);
@@ -48,8 +51,13 @@ export class ItemsView {
         const angle = Math.PI / 2 + (here.indexOf(item.id) - (here.length - 1) / 2) * 0.9;
         view.target.set(cell.x + Math.cos(angle) * 0.75, 0.15, cell.z + Math.sin(angle) * 0.75);
       }
-      if (instant) view.mesh.position.copy(view.target);
+      if (instant) view.base.copy(view.target);
     }
+  }
+
+  // Предмет кинули — він летить дугою
+  throwItem(itemId: string): void {
+    this.views.get(itemId)?.hop.start();
   }
 
   update(dt: number, units: UnitsView): void {
@@ -60,7 +68,9 @@ export class ItemsView {
         view.target.copy(units.displayPosition(view.carriedBy));
         view.target.y += HELD_HEIGHT;
       }
-      view.mesh.position.lerp(view.target, t);
+      view.base.lerp(view.target, t);
+      view.mesh.position.copy(view.base);
+      view.mesh.position.y += view.hop.offset(dt);
       view.mesh.rotation.y = this.time * 1.5; // повільно крутиться — так предмет помітніший
     }
   }

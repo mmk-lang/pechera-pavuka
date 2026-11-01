@@ -18,8 +18,10 @@ import { cellRisks } from './core/risk';
 import { cellsUnderLane, getCocoon, getSoldier, seenCells, turretStatus, type GameState } from './core/state';
 import type { Action, Held } from './core/types';
 import { t } from './i18n';
+import { Sound } from './audio/sound';
 import { CameraInput } from './input/cameraInput';
 import { Picker } from './input/picking';
+import { EFFECT_COLORS } from './render/effects';
 import { createGameScene, type GameScene } from './render/scene';
 import { ActionPanel, type PanelButton } from './ui/actionPanel';
 import { currentHint } from './ui/hints';
@@ -45,6 +47,7 @@ export class Game {
   private hud: Hud;
   private panel: ActionPanel;
   private cameraInput: CameraInput;
+  private sound: Sound;
 
   constructor(
     private readonly root: HTMLElement,
@@ -53,6 +56,7 @@ export class Game {
     private readonly options: GameOptions,
   ) {
     this.state = initialState;
+    this.sound = new Sound(initialState.balance.soundVolume);
     this.scene = createGameScene(root, initialState);
     const canvas = this.scene.renderer.domElement;
     this.cameraInput = new CameraInput(this.scene.rig, canvas, initialState.balance.camera);
@@ -67,10 +71,11 @@ export class Game {
       onSelectSoldier: (id) => this.select(id),
       onEndTurn: () => this.dispatch({ type: 'endTurn' }),
       onUndo: () => this.undo(),
+      onToggleSound: () => this.sound.toggle(),
       onMenu: () => {
         if (window.confirm(t('menuConfirm'))) restartWith({ ...this.options, seed: null, play: false });
       },
-    });
+    }, this.sound.enabled);
     this.panel = new ActionPanel(root);
     this.scene.spider.lookAtLane(this.laneAngle(initialState.spider.activeLane), true);
 
@@ -151,6 +156,7 @@ export class Game {
     const check = validate(this.state, action);
     if (!check.ok) {
       this.hud.message(t(`reason.${check.reason}`));
+      this.sound.play('reject');
       return;
     }
     const hadAp = anyApLeft(this.state);
@@ -174,7 +180,6 @@ export class Game {
     this.refresh();
   }
 
-  // Події з ядра: підказка внизу (toast), рядок у списку подій і анімації на сцені
   // «Скасувати»: повертаємо стан до останньої дії. Вибір лишаємо на тому, хто діяв.
   private undo(): void {
     const previous = this.history.pop();
@@ -186,49 +191,89 @@ export class Game {
     this.mode = 'move';
     this.dangerConfirm = null;
     this.hud.message(t('undone'));
+    this.sound.play('undo');
     this.refresh();
   }
 
+  // Події з ядра: підказка внизу (toast), рядок у списку подій, звук і анімації на сцені
   private showEvents(events: GameEvent[]): void {
+    const enemyPhase = events.some((e) => e.type === 'spiderTurned');
     // Ворожу фазу пишемо в список одним рядком, а не окремо для кожного павучати
-    if (events.some((e) => e.type === 'spiderTurned')) this.hud.log(t('event.enemyPhase'));
+    if (enemyPhase) this.hud.log(t('event.enemyPhase'));
+    let focused = false; // камера показує лише перше захоплення у ворожій фазі
+    const cell = (id: string) => this.state.world.cells[id];
     for (const event of events) {
       switch (event.type) {
+        case 'moved':
+          this.sound.play('step');
+          break;
+        case 'pickedUp':
+          this.sound.play('pickup');
+          break;
+        case 'thrown':
+          this.sound.play('throw');
+          // Те, що кинули, летить дугою
+          if (event.target.kind === 'item') this.scene.items.throwItem(event.target.id);
+          if (event.target.kind === 'soldier') this.scene.units.throwSoldier(event.target.id);
+          if (event.target.kind === 'cocoon') this.scene.cocoons.throwCocoon(event.target.id);
+          break;
         case 'roundStarted':
           this.hud.message(t('roundStarted', { n: event.round }));
           this.hud.log(t('event.round', { n: event.round }), 'round');
           break;
-        case 'installed':
+        case 'installed': {
+          const turret = cell(this.state.world.level.turretCell);
+          this.scene.effects.burst(turret.x, turret.z, EFFECT_COLORS.install);
+          this.sound.play('install');
           this.hud.message(t('installed', { name: t(`item.${event.itemId}`) }));
           this.hud.log(t('event.installed', { name: t(`item.${event.itemId}`) }), 'good');
           break;
+        }
         case 'spiderlingKilled': {
+          this.scene.effects.burst(cell(event.cellId).x, cell(event.cellId).z, EFFECT_COLORS.good);
+          this.sound.play('kill');
           const text = t('event.spiderlingKilled', { item: t(`item.${event.itemId}`) });
           this.hud.message(text);
           this.hud.log(text, 'good');
           break;
         }
         case 'fired':
+          this.sound.play('fire');
           this.scene.turret.fire();
           this.scene.spider.die();
           break;
-        case 'unwrapped':
+        case 'unwrapped': {
+          const where = cell(getSoldier(this.state, event.soldierId)!.cellId);
+          this.scene.effects.burst(where.x, where.z, EFFECT_COLORS.good);
+          this.sound.play('rescue');
           this.say(t('event.unwrapped', { name: this.soldierName(event.soldierId) }), 'good');
           break;
+        }
         case 'captured':
+          this.scene.effects.burst(cell(event.cellId).x, cell(event.cellId).z, EFFECT_COLORS.capture);
+          this.sound.play('capture');
+          // Захоплення у ворожій фазі гравець міг не побачити — камера коротко «підлітає» туди
+          if (enemyPhase && !focused) {
+            this.scene.rig.glideTo(cell(event.cellId).x, cell(event.cellId).z);
+            focused = true;
+          }
           this.say(t('event.captured', { name: this.soldierName(event.soldierId) }), 'warn');
           break;
         case 'died':
+          this.sound.play('death');
           this.say(t('event.died', { name: this.soldierName(event.soldierId) }), 'bad');
           break;
         case 'spiderTurned':
+          this.sound.play('enemy');
           this.scene.spider.lookAtLane(this.laneAngle(event.activeLane));
           break;
         case 'won':
+          this.sound.play('victory');
           this.selectedId = null;
           window.setTimeout(() => showVictory(this.root, this.state.round, this.state.seed, this.options), END_SCREEN_DELAY);
           break;
         case 'lost':
+          this.sound.play('defeat');
           this.selectedId = null;
           window.setTimeout(() => showDefeat(this.root, this.state.round, this.state.seed, this.options), END_SCREEN_DELAY);
           break;

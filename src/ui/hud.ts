@@ -15,6 +15,7 @@ export interface HudHandlers {
   onEndTurn(): void;
   onUndo(): void;
   onMenu(): void;
+  onToggleSound(): boolean; // повертає, чи звук тепер увімкнено
 }
 
 // Що ще показує HUD, крім стану гри
@@ -45,7 +46,13 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, te
 
 const hex = (color: number) => `#${color.toString(16).padStart(6, '0')}`;
 
-export function createHud(root: HTMLElement, state: GameState, problems: LevelProblem[], handlers: HudHandlers): Hud {
+export function createHud(
+  root: HTMLElement,
+  state: GameState,
+  problems: LevelProblem[],
+  handlers: HudHandlers,
+  soundOn: boolean,
+): Hud {
   // --- Панель зліва вгорі ---
   const info = el('div', 'hud');
   const titleRow = el('div', 'hud-title-row');
@@ -54,7 +61,11 @@ export function createHud(root: HTMLElement, state: GameState, problems: LevelPr
   const helpButton = el('button', 'hud-small-button', '?');
   const menuButton = el('button', 'hud-small-button', t('menu'));
   menuButton.addEventListener('click', () => handlers.onMenu());
-  titleRow.append(helpButton, menuButton);
+  // Звук: 🔊 — увімкнено, 🔇 — вимкнено
+  const soundButton = el('button', 'hud-small-button', soundOn ? '🔊' : '🔇');
+  soundButton.title = t('soundToggle');
+  soundButton.addEventListener('click', () => (soundButton.textContent = handlers.onToggleSound() ? '🔊' : '🔇'));
+  titleRow.append(soundButton, helpButton, menuButton);
   info.append(titleRow);
   const roundLine = el('div', 'hud-round');
   info.append(roundLine);

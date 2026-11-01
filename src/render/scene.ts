@@ -7,6 +7,7 @@ import { CameraRig } from './camera';
 import { createCave } from './cave';
 import { CellsView } from './cells';
 import { CocoonsView } from './cocoons';
+import { EffectsView } from './effects';
 import { createRocks } from './rocks';
 import { ItemsView } from './items';
 import { LanesView } from './lanes';
@@ -27,6 +28,7 @@ export interface GameScene {
   spiderlings: SpiderlingsView;
   lanes: LanesView;
   cocoons: CocoonsView;
+  effects: EffectsView;
   render(dt: number): void;
 }
 
@@ -69,7 +71,8 @@ export function createGameScene(container: HTMLElement, state: GameState): GameS
   const spiderlings = new SpiderlingsView(state);
   const lanes = new LanesView(level);
   const cocoons = new CocoonsView();
-  scene.add(lanes.group, cells.group, units.group, items.group, cocoons.group, turret.group, spider.group, spiderlings.group);
+  const effects = new EffectsView();
+  scene.add(lanes.group, cells.group, units.group, items.group, cocoons.group, turret.group, spider.group, spiderlings.group, effects.group);
 
   const rig = new CameraRig(state.balance.camera, level.cave);
 
@@ -96,13 +99,16 @@ export function createGameScene(container: HTMLElement, state: GameState): GameS
     spiderlings,
     lanes,
     cocoons,
+    effects,
     render: (dt) => {
+      rig.tick(dt);
       units.update(dt);
       items.update(dt, units);
       cocoons.update(dt, units);
       turret.update(dt);
       spider.update(dt);
       spiderlings.update(dt);
+      effects.update(dt);
       renderer.render(scene, rig.camera);
     },
   };

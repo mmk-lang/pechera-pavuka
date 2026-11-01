@@ -4,7 +4,11 @@
 
 import * as THREE from 'three';
 
-const MAX_TAP_MOVE = 8; // пікселів: якщо зрушили більше — це було перетягування
+const MAX_TAP_MOVE = 8; // пікселів: якщо зрушили більше — це було перетягування (мишею)
+const MAX_TAP_MOVE_TOUCH = 14; // палець тремтить сильніше, тож для тапу допускаємо більше
+// Промахнулись повз фігурку чи клітинку? Беремо найближчу до точки тапу на підлозі, якщо вона недалеко.
+const SOLDIER_SNAP = 0.9; // одиниць печери
+const CELL_SNAP = 1.6;
 const MAX_TAP_TIME = 500; // мілісекунд: довше — це вже не тап
 
 export interface PickHandlers {
@@ -37,7 +41,8 @@ export class Picker {
       this.down = null;
       if (!down) return;
       const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
-      if (moved <= MAX_TAP_MOVE && performance.now() - down.time <= MAX_TAP_TIME) this.pick(e.clientX, e.clientY);
+      const maxMove = e.pointerType === 'touch' ? MAX_TAP_MOVE_TOUCH : MAX_TAP_MOVE;
+      if (moved <= maxMove && performance.now() - down.time <= MAX_TAP_TIME) this.pick(e.clientX, e.clientY);
     });
     element.addEventListener('pointercancel', () => {
       this.pointersDown = Math.max(0, this.pointersDown - 1);
@@ -61,6 +66,35 @@ export class Picker {
     const cellHit = this.raycaster.intersectObjects(this.cells(), false)[0];
     if (cellHit) return this.handlers.onCell(cellHit.object.userData.cellId);
 
+    // Точно не влучили (на телефоні фігурки маленькі) — шукаємо найближче до точки на підлозі
+    const ground = this.raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), new THREE.Vector3());
+    if (ground) {
+      const soldier = nearest(this.soldiers(), ground, SOLDIER_SNAP, (o) => o.parent!.position);
+      if (soldier) return this.handlers.onSoldier(soldier.userData.soldierId);
+      const cell = nearest(this.cells(), ground, CELL_SNAP, (o) => o.position);
+      if (cell) return this.handlers.onCell(cell.userData.cellId);
+    }
+
     this.handlers.onNothing();
   }
+}
+
+// Найближчий до точки об'єкт (за позицією на підлозі), але не далі ніж maxDistance
+function nearest(
+  objects: THREE.Object3D[],
+  point: THREE.Vector3,
+  maxDistance: number,
+  positionOf: (o: THREE.Object3D) => THREE.Vector3,
+): THREE.Object3D | null {
+  let best: THREE.Object3D | null = null;
+  let bestDistance = maxDistance;
+  for (const object of objects) {
+    const p = positionOf(object);
+    const d = Math.hypot(p.x - point.x, p.z - point.z);
+    if (d < bestDistance) {
+      best = object;
+      bestDistance = d;
+    }
+  }
+  return best;
 }

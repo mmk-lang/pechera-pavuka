@@ -11,6 +11,7 @@ const DEG = Math.PI / 180;
 export class CameraRig {
   readonly camera: THREE.PerspectiveCamera;
   private target = new THREE.Vector2(0, 0); // x і z точки, на яку дивимось
+  private glide: THREE.Vector2 | null = null; // куди камера плавно «підлітає» (показ подій ворожої фази)
   private distance: number;
   private yaw = 0; // поворот у радіанах; 0 — камера стоїть з боку гравця (+z) і дивиться на павука
   private readonly pitch: number;
@@ -27,6 +28,7 @@ export class CameraRig {
 
   // Рух у «екранних» напрямках: right — праворуч по екрану, forward — вгору по екрану.
   pan(right: number, forward: number): void {
+    this.glide = null; // гравець сам рухає камеру — не заважаємо
     const sin = Math.sin(this.yaw);
     const cos = Math.cos(this.yaw);
     this.target.x += right * cos - forward * sin;
@@ -42,6 +44,19 @@ export class CameraRig {
     const metersPerPixel = visibleHeight / viewportHeight;
     // Камера дивиться під кутом, тому вертикальний рух на екрані трохи «розтягнутий»
     this.pan(-dxPixels * metersPerPixel, (dyPixels * metersPerPixel) / Math.sin(this.pitch));
+  }
+
+  // Плавно перевести камеру на точку (x, z) — за пів секунди. Будь-який рух камери гравцем це скасовує.
+  glideTo(x: number, z: number): void {
+    this.glide = new THREE.Vector2(x, z);
+  }
+
+  // Викликати щокадру
+  tick(dt: number): void {
+    if (!this.glide) return;
+    this.target.lerp(this.glide, Math.min(1, dt * 6));
+    if (this.target.distanceTo(this.glide) < 0.05) this.glide = null;
+    this.update();
   }
 
   // Перевести камеру на точку підлоги (x, z)

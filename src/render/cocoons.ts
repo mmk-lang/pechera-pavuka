@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import type { GameState } from '../core/state';
 import type { Cocoon } from '../core/types';
+import { Hop } from './hop';
 import type { UnitsView } from './units';
 
 const MOVE_TIME = 0.3;
@@ -15,7 +16,9 @@ interface CocoonView {
   group: THREE.Group;
   label: THREE.Sprite;
   turnsShown: number;
+  base: THREE.Vector3; // де кокон «на землі» (без підскоку кидка)
   target: THREE.Vector3;
+  hop: Hop;
   carriedBy: string | null;
 }
 
@@ -42,7 +45,10 @@ export class CocoonsView {
       }
       view.carriedBy = cocoon.carriedBy;
       if (!cocoon.carriedBy) view.target.copy(positionInCell(state, cocoon));
-      if (isNew || instant) view.group.position.copy(view.target);
+      if (isNew || instant) {
+        view.base.copy(view.target);
+        view.group.position.copy(view.target);
+      }
       if (view.turnsShown !== cocoon.turnsLeft) setLabel(view, cocoon.turnsLeft);
     }
   }
@@ -51,8 +57,15 @@ export class CocoonsView {
     const t = Math.min(1, (dt / MOVE_TIME) * 4);
     for (const view of this.views.values()) {
       if (view.carriedBy) view.target.copy(units.displayPosition(view.carriedBy)).setY(CARRY_HEIGHT);
-      view.group.position.lerp(view.target, t);
+      view.base.lerp(view.target, t);
+      view.group.position.copy(view.base);
+      view.group.position.y += view.hop.offset(dt);
     }
+  }
+
+  // Кокон кинули — він летить дугою
+  throwCocoon(cocoonId: string): void {
+    this.views.get(cocoonId)?.hop.start();
   }
 
   private create(): CocoonView {
@@ -76,7 +89,7 @@ export class CocoonsView {
     label.renderOrder = 10; // лічильник завжди видно, навіть крізь камінь
     group.add(body, label);
     this.group.add(group);
-    return { group, label, turnsShown: -1, target: new THREE.Vector3(), carriedBy: null };
+    return { group, label, turnsShown: -1, base: new THREE.Vector3(), target: new THREE.Vector3(), hop: new Hop(), carriedBy: null };
   }
 }
 

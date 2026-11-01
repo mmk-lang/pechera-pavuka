@@ -3,6 +3,7 @@
 import balanceJson from '../data/balance.json';
 import levelJson from '../data/level01.json';
 import type { Balance } from './core/balance';
+import { generateLevel } from './core/generator';
 import { validateLevel } from './core/level';
 import { randomSeed } from './core/rng';
 import { createInitialState } from './core/state';
@@ -27,8 +28,12 @@ if (options.play) startGame(options);
 else showStartScreen(root, options, startGame);
 
 function startGame(chosen: GameOptions): void {
-  const state = createInitialState(level, applyOptions(balance, chosen), chosen.seed ?? randomSeed());
-  const game = new Game(root, state, problems, chosen);
+  const seed = chosen.seed ?? randomSeed();
+  // Випадкова печера будується з того самого seed — тож номер печери повторює і печеру, і партію
+  const caveLevel = chosen.randomCave ? generateLevel(seed, level, balance.generator, balance.neighborsCount) : level;
+  const caveProblems = chosen.randomCave ? validateLevel(caveLevel) : problems;
+  const state = createInitialState(caveLevel, applyOptions(balance, chosen), seed);
+  const game = new Game(root, state, caveProblems, chosen);
   // Записуємо налаштування й seed в адресу: оновлення сторінки почне цю саму печеру заново
   history.replaceState(null, '', optionsToSearch({ ...chosen, seed: state.seed, play: true }));
 

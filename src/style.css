@@ -7,6 +7,10 @@ body {
   background: #0d0b0a;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color: #eee4d8;
+  overscroll-behavior: none; /* телефон не «пружинить» сторінку */
+  -webkit-tap-highlight-color: transparent; /* без сірого спалаху при тапі */
+  -webkit-user-select: none; /* довге натискання не виділяє текст */
+  user-select: none;
 }
 
 #app {
@@ -553,4 +557,24 @@ body {
   margin: 14px auto 0;
   font-size: 22px;
   padding: 12px 48px;
+}
+
+.start-seed select {
+  font: inherit;
+  margin-left: 6px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: #120e0c;
+  color: #f3e9dc;
+}
+
+/* iPhone без кнопки «Додому»: не ховаємо нижню панель під смужку жестів */
+.bottom-bar {
+  bottom: calc(12px + env(safe-area-inset-bottom));
+}
+
+.start-seed input {
+  -webkit-user-select: text;
+  user-select: text;
 }

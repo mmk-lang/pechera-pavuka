@@ -1,12 +1,13 @@
 // Налаштування партії, які гравець обирає на стартовому екрані.
-// Вони зберігаються в адресі сторінки (наприклад, ?seed=123&next=1&risk=0&hints=1&play=1),
+// Вони зберігаються в адресі сторінки (наприклад, ?seed=123&cave=random&next=1&risk=0&hints=1&play=1),
 // тому «Грати знову» просто перезавантажує сторінку з потрібною адресою.
 // За замовчуванням беремо значення з data/balance.json.
 
 import type { Balance } from '../core/balance';
 
 export interface GameOptions {
-  seed: number | null; // null — випадкова печера
+  seed: number | null; // null — випадковий seed
+  randomCave: boolean; // true — печера з генератора (з того самого seed), false — рівень Колі (level01)
   telegraphNextLane: boolean; // показувати наступну лінію павука
   showRisk: boolean; // показувати ризик клітинок
   showHints: boolean; // показувати підказки
@@ -19,6 +20,7 @@ export function readOptions(search: string, balance: Balance): GameOptions {
   const seed = Number.parseInt(params.get('seed') ?? '', 10);
   return {
     seed: Number.isFinite(seed) ? seed : balance.seed,
+    randomCave: params.get('cave') === 'random',
     telegraphNextLane: flag('next', balance.telegraphNextLane),
     showRisk: flag('risk', balance.showRisk),
     showHints: flag('hints', balance.showHints),
@@ -29,6 +31,7 @@ export function readOptions(search: string, balance: Balance): GameOptions {
 export function optionsToSearch(options: GameOptions): string {
   const params = new URLSearchParams();
   if (options.seed !== null) params.set('seed', String(options.seed));
+  if (options.randomCave) params.set('cave', 'random');
   params.set('next', options.telegraphNextLane ? '1' : '0');
   params.set('risk', options.showRisk ? '1' : '0');
   params.set('hints', options.showHints ? '1' : '0');
